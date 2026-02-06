@@ -207,6 +207,8 @@ DimPlot(PYMT2Sel, reduction = "tsne")
 
 ### heift
 dt = fread("../heift_2022_FOLR2_GSE192935/GSE192935_Raw_Counts_SC_Mouse_Fcgr1pos_FigS3.csv.gz")
+rownames(meta) <- meta$V1
+meta$V1 <- NULL
 Fcgr1pos_heift <- CreateSeuratObject(  dt,  meta.data = NULL,  project = "Fcgr1pos_heift")
 
 meta = data.frame(fread("../heift_2022_FOLR2_GSE192935/GSE192935_Metadata_SC_Mouse_Fcgr1pos_FigS3.csv.gz"))
@@ -219,6 +221,8 @@ Fcgr1pos_heift <-AddMetaData(Fcgr1pos_heift, meta, col.name = NULL)
 Fcgr1pos_heift_s = seurat_analyse(Fcgr1pos_heift)
 
 dt = fread("../heift_2022_FOLR2_GSE192935/GSE192935_Raw_Counts_SC_Mouse_TAMs_Fig3.csv.gz")
+rownames(meta) <- meta$V1
+meta$V1 <- NULL
 tam_heift <- CreateSeuratObject(  dt,  meta.data = NULL,  project = "TAM_heift")
 
 meta = data.frame(fread("../heift_2022_FOLR2_GSE192935/GSE192935_Metadata_SC_Mouse_TAMs_Fig3.csv.gz"))
