@@ -57,4 +57,18 @@ seurat_analyse <- function(obj_seurat){
   obj_seurat <- RunUMAP(obj_seurat, dims = 1:10)
   return(obj_seurat)
 }
-
+seurat_integration<- function(list_seurat){
+  int.anchors <- FindIntegrationAnchors(object.list = list_seurat, dims = 1:10)
+  to_integrate <- Reduce(intersect, lapply(int.anchors@object.list, rownames))
+  int.combined <- IntegrateData(anchorset = int.anchors,features.to.integrate=to_integrate, dims = 1:10)
+  DefaultAssay(int.combined) <- "RNA"
+  int.combined <- JoinLayers(int.combined, assay = "RNA")
+  DefaultAssay(int.combined) <- "integrated"
+  
+  int.combined <- ScaleData(int.combined, verbose = FALSE)
+  int.combined <- RunPCA(int.combined, npcs = 50, verbose = FALSE)
+  int.combined <- RunUMAP(int.combined, reduction = "pca", dims = 1:10)
+  int.combined <- FindNeighbors(int.combined, reduction = "pca", dims = 1:10)
+  int.combined <- FindClusters(int.combined, resolution = 1)
+  return(int.combined)
+  }

@@ -1,5 +1,5 @@
-source('/home/alexandre-boissonnas/Documents/Alexandre_mouse/packages.R')
-source('/home/alexandre-boissonnas/Documents/Alexandre_mouse/functions.R')
+source('/home/alexandre-boissonnas/imrb/packages.R')
+source('/home/alexandre-boissonnas/imrb/functions.R')
 
 setwd(dir = "/home/alexandre-boissonnas/Documents/Alexandre_mouse/PYMT\ scRNAseq/boissonas_2022_tam-breast_GSE184096/")
 
@@ -229,3 +229,16 @@ colnames(meta) <- paste0(colnames(meta),'_paper')
 tam_heift <-AddMetaData(tam_heift, meta, col.name = NULL)
 
 tam_heift_s = seurat_analyse(tam_heift)
+#integration
+heift_int = seurat_integration(list(Fcgr1pos_heift_s,tam_heift_s))
+DimPlot(heift_int, reduction = "umap", group.by = "orig.ident")
+DimPlot(heift_int, reduction = "umap",label=T)
+
+heift_int <- add_signatures_mouse(heift_int,signatures_mouse,'Major_cell_type')
+FeaturePlot(heift_int,features=unique(signatures_mouse$Major_cell_type))& 
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
+VlnPlot(heift_int,features=unique(signatures_mouse$Major_cell_type), group.by='seurat_clusters')
+heift_int <- add_signatures_mouse(heift_int,signatures_mouse,'Subset_or_state')
+FeaturePlot(heift_int,features=unique(signatures_mouse$Subset_or_state))& 
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
+VlnPlot(heift_int,features=unique(signatures_mouse$Subset_or_state), group.by='seurat_clusters')
