@@ -207,8 +207,8 @@ DimPlot(PYMT2Sel, reduction = "tsne")
 
 ### heift
 dt = fread("../heift_2022_FOLR2_GSE192935/GSE192935_Raw_Counts_SC_Mouse_Fcgr1pos_FigS3.csv.gz")
-rownames(meta) <- meta$V1
-meta$V1 <- NULL
+rownames(dt) <- dt$V1
+dt$V1 <- NULL
 Fcgr1pos_heift <- CreateSeuratObject(  dt,  meta.data = NULL,  project = "Fcgr1pos_heift")
 
 meta = data.frame(fread("../heift_2022_FOLR2_GSE192935/GSE192935_Metadata_SC_Mouse_Fcgr1pos_FigS3.csv.gz"))
@@ -221,8 +221,8 @@ Fcgr1pos_heift <-AddMetaData(Fcgr1pos_heift, meta, col.name = NULL)
 Fcgr1pos_heift_s = seurat_analyse(Fcgr1pos_heift)
 
 dt = fread("../heift_2022_FOLR2_GSE192935/GSE192935_Raw_Counts_SC_Mouse_TAMs_Fig3.csv.gz")
-rownames(meta) <- meta$V1
-meta$V1 <- NULL
+rownames(dt) <- dt$V1
+dt$V1 <- NULL
 tam_heift <- CreateSeuratObject(  dt,  meta.data = NULL,  project = "TAM_heift")
 
 meta = data.frame(fread("../heift_2022_FOLR2_GSE192935/GSE192935_Metadata_SC_Mouse_TAMs_Fig3.csv.gz"))
@@ -243,6 +243,12 @@ FeaturePlot(heift_int,features=unique(signatures_mouse$Major_cell_type))&
   scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
 VlnPlot(heift_int,features=unique(signatures_mouse$Major_cell_type), group.by='seurat_clusters')
 heift_int <- add_signatures_mouse(heift_int,signatures_mouse,'Subset_or_state')
-FeaturePlot(heift_int,features=unique(signatures_mouse$Subset_or_state))& 
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
-VlnPlot(heift_int,features=unique(signatures_mouse$Subset_or_state), group.by='seurat_clusters')
+for(tissue in c('Mononuclear_phagocyte','Dendritic_cell','Mast_cell_or_basophil','NK_or_ILC')){
+  subset = unique(signatures_mouse[signatures_mouse$Major_cell_type==tissue,]$Subset_or_state)
+  ft_plot <- FeaturePlot(heift_int,features=subset)& 
+    scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
+  vln_plot <- VlnPlot(heift_int,features=subset, group.by='seurat_clusters')
+  plot(ft_plot)
+  plot(vln_plot)
+}
+
