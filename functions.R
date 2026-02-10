@@ -2,7 +2,7 @@
 #list of signature genes
 
 signatures_human = read.csv('/home/marinelouarn/Documents/Alexandre_mouse/20260204_Signatures_Cell_populations_HUMAN.csv')
-signatures_mouse = read.csv('/home/marinelouarn/Documents/Alexandre_mouse/20260405_Mouse_cellPopulation_Signature_Genes_ConensusNEW.csv')
+signatures_mouse = read.csv('/home/marinelouarn/Documents/Alexandre_mouse/20260409_Mouse_cellPopulation_Signature_Genes_Conensus.csv')
 signatures_mouse = signatures_mouse[signatures_mouse$Keep_for_initial_screening=='y',]
 
 add_signatures_ortho <- function(obj_seurat, signature_file, level_signature){
@@ -25,7 +25,7 @@ add_signatures_ortho <- function(obj_seurat, signature_file, level_signature){
 
 add_signatures_mouse <- function(obj_seurat, signature_file, level_signature){
   for(tissue in as.list(unique(signature_file[level_signature]))[[1]]){
-    genes_mouse = signature_file[signature_file[level_signature]==tissue,]$gene
+    genes_mouse = signature_file[signature_file[level_signature]==tissue,]$Signature_gene_mouse.style_symbol
     print(tissue)
     obj_seurat <- AddModuleScore_UCell(obj_seurat,
                                        assay= 'RNA',
@@ -66,4 +66,17 @@ seurat_integration<- function(list_seurat){
   int.combined <- FindNeighbors(int.combined, reduction = "pca", dims = 1:10)
   int.combined <- FindClusters(int.combined, resolution = 1)
   return(int.combined)
+}
+
+find_best_resolution<- function(seurat_obj){
+  for(i in seq(0.2,1,0.2)){
+    seurat_obj <- FindClusters(seurat_obj, resolution = i)
+    AverageExpression(
+      seurat_obj,
+      features = SIGNATURE,
+      group.by = paste0('integrated_snn_res.',str(i))
+    )
   }
+  
+  return(int.combined)
+}

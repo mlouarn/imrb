@@ -151,7 +151,7 @@ DimPlot(int.combined, reduction = "umap", group.by = "orig.ident")
 DimPlot(int.combined, reduction = "umap",label=T)
 
 saveRDS(int.combined, file = "int_combined.rds")
-int.combined = readRDS(file = "int_combined.rds")
+int.combinedint.combined = readRDS(file = "int_combined.rds")
 
 FeaturePlot(int.combined,features='nFeature_RNA')
 VlnPlot(int.combined,features='nFeature_RNA', group.by='seurat_clusters')
@@ -200,6 +200,36 @@ int.combined.markers %>%
 png("top5_marker_int.png",width = 550, height =600,unit="px")
   DoHeatmap(int.combined,features =top5$gene) +NoLegend()
 dev.off()
+
+###best resolution
+
+subset = unique(signatures_mouse$Subset_or_state)
+
+max=0
+best=0
+for(i in seq(0.2,1,0.2)){
+  int.combined <- FindClusters(int.combined, resolution = i)
+  states = unique(signatures_mouse['Subset_or_state'])[[1]]
+  pan_state = grep('^Pan_', states, value = TRUE)
+  clusters = table(int.combined[[paste0('integrated_snn_res.',toString(i))]])
+  df <- data.frame(matrix(ncol = length(states), nrow = length(clusters)))
+  colnames(df)=states
+  rownames(df)=as.character(c(0:(length(clusters)-1)))
+  for(tissue in as.list(unique(signatures_mouse['Subset_or_state']))[[1]]){
+    a <- DotPlot(object = int.combined, features = tissue, group.by = paste0('integrated_snn_res.',toString(i)))
+    average = a$data$avg.exp.scaled
+    df[tissue]= average
+  }
+  tmp =sum(sapply(df, function(x) sum(x > 2))> 0 ) +#check number of subset with at least 1 cluster expr >2
+    sum(sapply(as.data.frame(t(df)), function(x) sum(x > 2))==1)#check number of cluster with 1 subset
+  if (tmp>max){
+    max=tmp
+    best = paste0('integrated_snn_res.',toString(i))
+  }
+}
+
+ComplexHeatmap::Heatmap(as.matrix(df), name = "AverageExpression", colorRamp2(c(0,0.1,2.5), c("white","yellow", "red")), row_names_side = "left",
+                        column_names_side = "top", cluster_rows = FALSE, cluster_columns = FALSE)
 
 ###Processed
 load('processed/PYMT2Sel.Robj')

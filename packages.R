@@ -1,4 +1,6 @@
 library(biomaRt)
+library(colorRamp2)
+library(ComplexHeatmap)
 library(RColorBrewer)
 library(dplyr)
 library(GeneOrthology)
