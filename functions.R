@@ -25,13 +25,15 @@ add_signatures_ortho <- function(obj_seurat, signature_file, level_signature){
 
 add_signatures_mouse <- function(obj_seurat, signature_file, level_signature){
   for(tissue in as.list(unique(signature_file[level_signature]))[[1]]){
-    genes_mouse = signature_file[signature_file[level_signature]==tissue,]$Signature_gene_mouse.style_symbol
-    print(tissue)
-    obj_seurat <- AddModuleScore_UCell(obj_seurat,
-                                       assay= 'RNA',
-                                       features = list(genes_mouse),
-                                       name = tissue)
-    obj_seurat[[as.character(tissue)]] <- obj_seurat[[paste0('signature_1',tissue)]]
+    if (tissue!=""){
+      genes_mouse = signature_file[signature_file[level_signature]==tissue,]$Signature_gene_mouse.style_symbol
+      print(tissue)
+      obj_seurat <- AddModuleScore_UCell(obj_seurat,
+                                         assay= 'RNA',
+                                         features = list(genes_mouse),
+                                         name = tissue)
+      obj_seurat[[as.character(tissue)]] <- obj_seurat[[paste0('signature_1',tissue)]]
+    }
   }
   gc()
   return(obj_seurat)
@@ -68,15 +70,29 @@ seurat_integration<- function(list_seurat){
   return(int.combined)
 }
 
-find_best_resolution<- function(seurat_obj){
+find_best_resolution<- function(seurat_obj,level_signature){
+  max=0
+  best=0
   for(i in seq(0.2,1,0.2)){
     seurat_obj <- FindClusters(seurat_obj, resolution = i)
-    AverageExpression(
-      seurat_obj,
-      features = SIGNATURE,
-      group.by = paste0('integrated_snn_res.',str(i))
-    )
+    states = unique(signatures_mouse[level_signature])[[1]]
+    states = states[states != ""]
+    clusters = table(seurat_obj[[paste0('integrated_snn_res.',toString(i))]])
+    df <- data.frame(matrix(ncol = length(states), nrow = length(clusters)))
+    colnames(df)=states
+    rownames(df)=as.character(c(0:(length(clusters)-1)))
+    print(i)
+    for(tissue in as.list(states)){
+      a <- DotPlot(object = seurat_obj, features = tissue, group.by = paste0('integrated_snn_res.',toString(i)))
+      average = a$data$avg.exp.scaled
+      df[tissue]= average
+    }
+    tmp =sum(sapply(df, function(x) sum(x > 2))> 0 ) +#check number of subset with at least 1 cluster expr >2
+      sum(sapply(as.data.frame(t(df)), function(x) sum(x > 2))==1)#check number of cluster with 1 subset
+    if (tmp>max){
+      max=tmp
+      best = paste0('integrated_snn_res.',toString(i))
+    }
   }
-  
-  return(int.combined)
+  return(best)
 }

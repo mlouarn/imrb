@@ -38,21 +38,6 @@ lympho <- AddMetaData(lympho,mtNan,'mtNan')
 lympho$percent.mt[is.na(lympho$percent.mt)]=0
 VlnPlot(lympho, features = c('nFeature_RNA','percent.mt'),ncol = 2)
 
-#print nb_c per subset
-nb_list = c()
-for (i in seq(1,100,10)) {
-  nb = length(colnames(subset(myelo, subset = percent.mt <= i)))
-  nb_list=c(nb_list,nb)
-}
-plot(seq(1,100,10),nb_list)
-
-nb_list = c()
-for (i in seq(1,7000,100)) {
-  nb = length(colnames(subset(myelo, subset = nFeature_RNA > i)))
-  nb_list=c(nb_list,nb)
-}
-plot(seq(1,7000,100),nb_list)
-
 #normalization
 tam1_s <- subset(tam1, subset = nFeature_RNA > 200& percent.mt <= 20)
 tam1_s <- NormalizeData(tam1_s, normalization.method = "LogNormalize", scale.factor = 10000)
@@ -171,23 +156,19 @@ FeaturePlot(int.combined,features=unique(signatures_human$Family))&
   scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
 VlnPlot(int.combined,features=c('Endothelial','Fibroblast','Immune','Lympho','Myeloid'), group.by='seurat_clusters')
 
-int.combined <- add_signatures_mouse(int.combined,signatures_mouse,'Major_cell_type')
-FeaturePlot(int.combined,features=unique(signatures_mouse$Major_cell_type))& 
+int.combined <- add_signatures_mouse(int.combined,signatures_mouse,'LEVEL_1')
+FeaturePlot(int.combined,features=unique(signatures_mouse$LEVEL_1))& 
   scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
-VlnPlot(int.combined,features=unique(signatures_mouse$Major_cell_type), group.by='seurat_clusters')
-int.combined <- add_signatures_mouse(int.combined,signatures_mouse,'Subset_or_state')
-FeaturePlot(int.combined,features=unique(signatures_mouse$Subset_or_state))& 
+VlnPlot(int.combined,features=unique(signatures_mouse$LEVEL_1), group.by='seurat_clusters')
+int.combined <- add_signatures_mouse(int.combined,signatures_mouse,'LEVEL_2')
+FeaturePlot(int.combined,features=unique(signatures_mouse$LEVEL_2))& 
   scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
-VlnPlot(int.combined,features=unique(signatures_mouse$Subset_or_state), group.by='seurat_clusters')
+VlnPlot(int.combined,features=unique(signatures_mouse$LEVEL_2), group.by='seurat_clusters')
+FeaturePlot(int.combined,features=unique(signatures_mouse$LEVEL_3))& 
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
+VlnPlot(int.combined,features=unique(signatures_mouse$LEVEL_3), group.by='seurat_clusters')
 
-for(tissue in unique(signatures_mouse$Major_cell_type)){
-  subset = unique(signatures_mouse[signatures_mouse$Major_cell_type==tissue,]$Subset_or_state)
-  ft_plot <- FeaturePlot(int.combined,features=subset)& 
-    scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
-  vln_plot <- VlnPlot(int.combined,features=subset, group.by='seurat_clusters')
-  plot(ft_plot)
-  plot(vln_plot)
-}
+find_best_resolution(int.combined,'LEVEL_1')
 
 #DEG
 int.combined.markers <- FindAllMarkers(int.combined,only.pos = TRUE)
@@ -205,28 +186,7 @@ dev.off()
 
 subset = unique(signatures_mouse$Subset_or_state)
 
-max=0
-best=0
-for(i in seq(0.2,1,0.2)){
-  int.combined <- FindClusters(int.combined, resolution = i)
-  states = unique(signatures_mouse['Subset_or_state'])[[1]]
-  pan_state = grep('^Pan_', states, value = TRUE)
-  clusters = table(int.combined[[paste0('integrated_snn_res.',toString(i))]])
-  df <- data.frame(matrix(ncol = length(states), nrow = length(clusters)))
-  colnames(df)=states
-  rownames(df)=as.character(c(0:(length(clusters)-1)))
-  for(tissue in as.list(unique(signatures_mouse['Subset_or_state']))[[1]]){
-    a <- DotPlot(object = int.combined, features = tissue, group.by = paste0('integrated_snn_res.',toString(i)))
-    average = a$data$avg.exp.scaled
-    df[tissue]= average
-  }
-  tmp =sum(sapply(df, function(x) sum(x > 2))> 0 ) +#check number of subset with at least 1 cluster expr >2
-    sum(sapply(as.data.frame(t(df)), function(x) sum(x > 2))==1)#check number of cluster with 1 subset
-  if (tmp>max){
-    max=tmp
-    best = paste0('integrated_snn_res.',toString(i))
-  }
-}
+
 
 ComplexHeatmap::Heatmap(as.matrix(df), name = "AverageExpression", colorRamp2(c(0,0.1,2.5), c("white","yellow", "red")), row_names_side = "left",
                         column_names_side = "top", cluster_rows = FALSE, cluster_columns = FALSE)
