@@ -1,7 +1,7 @@
-source('/home/alexandre-boissonnas/imrb/packages.R')
-source('/home/alexandre-boissonnas/imrb/functions.R')
+source('/home/marinelouarn/imrb/packages.R')
+source('/home/marinelouarn/imrb/functions.R')
 
-setwd(dir = "/home/alexandre-boissonnas/Documents/Alexandre_mouse/PYMT\ scRNAseq/boissonas_2022_tam-breast_GSE184096/")
+setwd(dir = "/home/marinelouarn/Documents/Alexandre_mouse/PYMT\ scRNAseq/boissonas_2022_tam-breast_GSE184096/")
 
 tam1.data <- Read10X(data.dir = "TAM1")
 tam1 <- CreateSeuratObject(counts = tam1.data, project = "tam1", min.cells = 3)
@@ -143,6 +143,7 @@ DefaultAssay(int.combined) <- "integrated"
 
 int.combined <- ScaleData(int.combined, verbose = FALSE)
 int.combined <- RunPCA(int.combined, npcs = 50, verbose = FALSE)
+int.combined <- RunICA(int.combined, verbose = FALSE)
 int.combined <- RunUMAP(int.combined, reduction = "pca", dims = 1:10)
 int.combined <- FindNeighbors(int.combined, reduction = "pca", dims = 1:10)
 int.combined <- FindClusters(int.combined, resolution = 1)
@@ -237,6 +238,8 @@ tam_heift_s = seurat_analyse(tam_heift)
 heift_int = seurat_integration(list(Fcgr1pos_heift_s,tam_heift_s))
 DimPlot(heift_int, reduction = "umap", group.by = "orig.ident")
 DimPlot(heift_int, reduction = "umap",label=T)
+
+saveRDS(heift_int, file = "../heift_2022_FOLR2_GSE192935/heift_int.rds")
 
 heift_int <- add_signatures_mouse(heift_int,signatures_mouse,'Major_cell_type')
 FeaturePlot(heift_int,features=unique(signatures_mouse$Major_cell_type))& 

@@ -1,5 +1,6 @@
 library(biomaRt)
-library(RColorBrewer)library(dplyr)
+library(RColorBrewer)
+library(dplyr)
 library(GeneOrthology)
 library(ggplot2)
 library(gridExtra)
