@@ -114,10 +114,39 @@ FeaturePlot(lympho_s,features=c('Cd3e','Cd4','Cd8a','Cd8b'))
 
 
 #JOIN DATASETS
-#Merge
-int.merge = merge(lympho_s, y=c(tam1_s,tam2_s,myelo_s),add.cell.ids=c('lympho','tam1','tam2','myelo'))
+#integration layers
+int.merge = merge(lympho, y=c(tam1,tam2,myelo),add.cell.ids=c('lympho','tam1','tam2','myelo'))
+#int.combined <- SCTransform(int.merge, vars.to.regress = "percent.mt", verbose = FALSE)
+int.merge <- subset(int.merge, subset = nFeature_RNA > 200& percent.mt <= 20)
+int.merge <- NormalizeData(int.merge, normalization.method = "LogNormalize", scale.factor = 10000)
+int.merge <- FindVariableFeatures(int.merge,, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(int.merge)
+int.merge <- ScaleData(int.merge, features = all.genes)
+int.merge <- RunPCA(int.merge)
+int.integrated <- IntegrateLayers(object = int.merge, method = HarmonyIntegration, orig.reduction = "pca", new.reduction = "harmony", verbose = FALSE)
+int.integrated <- FindNeighbors(int.integrated, reduction = "harmony", dims = 1:30)
+int.integrated <- FindClusters(int.integrated, resolution = 1)
+int.integrated <- RunUMAP(int.integrated, reduction = "harmony", dims = 1:10)
+int.integrated <- JoinLayers(int.integrated, assay = "RNA")
+DimPlot(int.integrated, reduction = "umap",label=T)
 
-#integration not merge
+int.integrated <- add_signatures_mouse(int.integrated,signatures_mouse,'LEVEL_1')
+FeaturePlot(int.integrated,features=unique(signatures_mouse$LEVEL_1))& 
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
+VlnPlot(int.integrated,features=unique(signatures_mouse$LEVEL_1), group.by='seurat_clusters')
+int.integrated <- add_signatures_mouse(int.integrated,signatures_mouse,'LEVEL_2')
+FeaturePlot(int.integrated,features=unique(signatures_mouse$LEVEL_2))& 
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
+VlnPlot(int.integrated,features=unique(signatures_mouse$LEVEL_2), group.by='seurat_clusters')
+int.integrated <- add_signatures_mouse(int.integrated,signatures_mouse,'LEVEL_3')
+FeaturePlot(int.integrated,features=unique(signatures_mouse$LEVEL_3))& 
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "Spectral")))
+VlnPlot(int.integrated,features=unique(signatures_mouse$LEVEL_3), group.by='seurat_clusters')
+
+saveRDS(int.integrated, file = "int_integrated.rds")
+int.integrated = readRDS(file = "int_integrated.rds")
+
+#integration data
 your_list <- list(tam1_s, tam2_s,myelo_s,lympho_s)
 int.anchors <- FindIntegrationAnchors(object.list = your_list, dims = 1:10)
 to_integrate <- Reduce(intersect, lapply(int.anchors@object.list, rownames))
@@ -136,7 +165,7 @@ DimPlot(int.combined, reduction = "umap", group.by = "orig.ident")
 DimPlot(int.combined, reduction = "umap",label=T)
 
 saveRDS(int.combined, file = "int_combined.rds")
-int.combinedint.combined = readRDS(file = "int_combined.rds")
+int.combined = readRDS(file = "int_combined.rds")
 
 FeaturePlot(int.combined,features='nFeature_RNA')
 VlnPlot(int.combined,features='nFeature_RNA', group.by='seurat_clusters')
@@ -182,14 +211,9 @@ png("top5_marker_int.png",width = 550, height =600,unit="px")
   DoHeatmap(int.combined,features =top5$gene) +NoLegend()
 dev.off()
 
-###best resolution
+###ICA
+int.combined <- RunICA(int.combined)
 
-subset = unique(signatures_mouse$Subset_or_state)
-
-
-
-ComplexHeatmap::Heatmap(as.matrix(df), name = "AverageExpression", colorRamp2(c(0,0.1,2.5), c("white","yellow", "red")), row_names_side = "left",
-                        column_names_side = "top", cluster_rows = FALSE, cluster_columns = FALSE)
 
 ###Processed
 load('processed/PYMT2Sel.Robj')

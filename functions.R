@@ -70,10 +70,14 @@ seurat_integration<- function(list_seurat){
   return(int.combined)
 }
 
+seurat_integration_sct<- function(merged_seurat){
+  merged_seurat <- SCTransform(merged_seurat, vars.to.regress = "percent.mt", verbose = FALSE)
+}
+
 find_best_resolution<- function(seurat_obj,level_signature){
   max=0
   best=0
-  for(i in seq(0.2,1,0.2)){
+  for(i in seq(0.2,1,0.1)){
     seurat_obj <- FindClusters(seurat_obj, resolution = i)
     states = unique(signatures_mouse[level_signature])[[1]]
     states = states[states != ""]
