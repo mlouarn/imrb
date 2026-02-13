@@ -1,0 +1,31 @@
+Add at beginning of line:
+sed 's/^/TOADD/' file.txt
+
+Revome all ' ' at begenning:
+sed 's/^ *//g'
+
+add first line
+sed '1 i TOADD'
+
+https://lipn.univ-paris13.fr/~cerin/SE/sed.html
+
+
+Sort:
+sort -V for number in order
+Sort and count
+sort file | uniq -c
+
+
+AWK
+-F for input file OFS for output
+awk -F '\t' -v OFS='\t' '{print $1,$4,$5,$9}'
+print 2 if 2<3, 3 else
+awk '{print $1, ($2<$3)?$2:$3' infile
+
+
+join and sort 
+join -i #ignore case
+join <(sort first_file.txt) <(sort second_file.txt) >joined.txt
+
+Remove everything untill _ in files names (bulk)
+find . -type f -name "*_*" -exec bash -c 'f="$1"; g="${f/*_/}"; mv -- "$f" "$g"' _ '{}' \;
