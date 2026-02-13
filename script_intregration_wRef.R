@@ -8,7 +8,7 @@ library(patchwork)
 library(RColorBrewer)
 library(Seurat)
 library(UCell)
-
+library(stringr)
 
 #######Fuctions
 seurat_integration<- function(list_seurat){
@@ -26,7 +26,7 @@ seurat_integration<- function(list_seurat){
   int.combined <- FindClusters(int.combined, resolution = 1)
   return(int.combined)
 }
-signatures_mouse = read.csv('/home/marinelouarn/Documents/Alexandre_mouse/20260409_Mouse_cellPopulation_Signature_Genes_Conensus.csv')
+signatures_mouse = read.csv('../20260409_Mouse_cellPopulation_Signature_Genes_Conensus.csv')
 signatures_mouse = signatures_mouse[signatures_mouse$Keep_for_initial_screening=='y',]
 add_signatures_mouse <- function(obj_seurat, signature_file, level_signature){
   for(tissue in as.list(unique(signature_file[level_signature]))[[1]]){
@@ -43,13 +43,17 @@ add_signatures_mouse <- function(obj_seurat, signature_file, level_signature){
   return(obj_seurat)
 }
 
+rename_org <- function(seurat_obj, rds_file){
+  seurat_obj$orig.ident = str_extract(rds_file, ".*(?=\\.rds$)")
+  return(seurat_obj)
+}
 ####Main
 folder_GSE = commandArgs(trailingOnly=TRUE)
 reference = readRDS('../zenodo-15826764/zenodo-15826764.rds')
 catch ='nice'
-
-rds_files = list.files(path = folder_GSE, pattern = '*.rds$')
+rds_files = list.files(path = '.', pattern = '*.rds$')
 list_seurat = lapply(rds_files, readRDS)
+list_seurat = mapply(rename_org, list_seurat, rds_files)
 list_seurat[[length(list_seurat)+1]] <- reference
 
 integrated = seurat_integration(list_seurat)
@@ -81,10 +85,15 @@ if (catch !='error'){
   dev.off()
 }
 
-saveRDS(integrated, file = "????.rds")
+saveRDS(integrated, file = paste0(folder_GSE,"_integrated.rds"))
 
-SG_Header <- read.table("Header_SeqGeq.txt",sep="\t",header=F,row.names=1,check.names = F)
+SG_Header <- read.table("../Header_SeqGeq.txt",sep="\t",header=F,row.names=1,check.names = F)
 SG_Header <- unname(SG_Header)
 counts_matrix <- as.data.frame(integrated[["integrated"]]$data)
-write.table(SG_Header, file = "test.txt",sep="\t")
-suppressWarnings(write.table(counts_matrix, file = "test.txt",sep="\t",append=T))
+umap = t(integrated[["umap"]]@cell.embeddings)
+cluster = t(integrated[["seurat_clusters"]])
+ctype = t(integrated[["celltype"]])
+total = rbind( counts_matrix , umap, cluster,ctype)
+
+write.table(SG_Header, file = paste0(folder_GSE,"_integrated.txt"),sep="\t")
+suppressWarnings(write.table(total, file = paste0(folder_GSE,"_integrated.txt"),sep="\t",append=T))
