@@ -89,10 +89,16 @@ saveRDS(integrated, file = paste0(folder_GSE,"_integrated.rds"))
 
 SG_Header <- read.table("../Header_SeqGeq.txt",sep="\t",header=F,row.names=1,check.names = F)
 SG_Header <- unname(SG_Header)
+
 counts_matrix <- as.data.frame(integrated[["integrated"]]$data)
 umap = t(integrated[["umap"]]@cell.embeddings)
 cluster = t(integrated[["seurat_clusters"]])
 ctype = t(integrated[["celltype"]])
+sample=myelo$orig.ident
+dataset=myelo$orig.ident
+pc=t(myelo@reductions$pca@cell.embeddings)
+ica=t(myelo@reductions$ica@cell.embeddings)
+
 total = rbind( counts_matrix , umap, cluster,ctype)
 
 write.table(SG_Header, file = paste0(folder_GSE,"_integrated.txt"),sep="\t")

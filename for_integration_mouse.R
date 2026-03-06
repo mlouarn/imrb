@@ -84,8 +84,17 @@ GSM6056013 <- CreateSeuratObject(counts = GSM6056013, project = "GSM6056013", mi
 GSM6056013 <- seurat_analyse(GSM6056013)
 saveRDS(GSM6056013, file = "GSE201247/GSM6056013.rds")
 
-###GSE217368 : Not touched
-GSE217368 <- readRDS('GSE217368/GSE217368_seurat_tdTom_allSamples_ForSubmission.rds')
+###GSE217368 : 
+for (i in c(1:10)){
+  obj <- ReadMtx(  mtx = paste0("GSE217368/GSE217368_matrix",i,".mtx.gz"), features = paste0("GSE217368/GSE217368_features",i,".tsv.gz"),
+                   cells = paste0("GSE217368/GSE217368_barcodes",i,".tsv.gz"))
+  colnames(obj) <- make.unique(colnames(obj))
+  obj <- CreateSeuratObject(counts = obj, project = paste0("GSE217368_",i), min.cells = 3)
+  obj <- seurat_analyse(obj)
+  saveRDS(obj, file = paste0("GSE217368/GSE217368_",i,".rds"))
+}
+rm(name,i,obj)
+gc()
 
 ###GSE127465
 df <- as.data.frame(fread('GSE127465/GSE127465_mouse_cell_metadata_15939x12.tsv.gz'))
@@ -379,6 +388,10 @@ gc()
 
 ###GSE270295 : Not touched
 GSE270295 <- readRDS('GSE270295_all.tumor.sobj.rds')
+GSE270295 <- UpdateSeuratObject(GSE270295)
+GSE270295 <- seurat_analyse(GSE270295)
+saveRDS(GSE270295, file = paste0("GSE270295/GSE270295.rds"))
+
 
 ###GSE159478
 for (i in c('GSM4830541_T1','GSM4830542_T2','GSM4830543_T3','GSM4830544_T4')){

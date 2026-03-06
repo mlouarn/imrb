@@ -2,7 +2,7 @@
 #list of signature genes
 
 signatures_human = read.csv('/home/marinelouarn/Documents/Alexandre_mouse/20260204_Signatures_Cell_populations_HUMAN.csv')
-signatures_mouse = read.csv('/home/marinelouarn/Documents/Alexandre_mouse/20260409_Mouse_cellPopulation_Signature_Genes_Conensus.csv')
+signatures_mouse = read.csv('/home/marinelouarn/Documents/Alexandre_mouse/20260217_Mouse_cellPopulation_Signature_Genes_Conensus.csv')
 signatures_mouse = signatures_mouse[signatures_mouse$Keep_for_initial_screening=='y',]
 
 add_signatures_ortho <- function(obj_seurat, signature_file, level_signature){
