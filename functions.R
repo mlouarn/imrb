@@ -1,9 +1,10 @@
 
 #list of signature genes
 
-signatures_human = read.csv('/home/marinelouarn/Documents/Alexandre_mouse/20260204_Signatures_Cell_populations_HUMAN.csv')
-signatures_mouse = read.csv('/home/marinelouarn/Documents/Alexandre_mouse/20260217_Mouse_cellPopulation_Signature_Genes_Conensus.csv')
+signatures_mouse = read.csv("~/Documents/Alexandre_mouse/Done/signature.v1.csv")
 signatures_mouse = signatures_mouse[signatures_mouse$Keep_for_initial_screening=='y',]
+signatures_mouse_b = read.csv("~/Documents/Alexandre_mouse/signature_boissonnas.v1.csv")
+genes_signature = unique(c(signatures_mouse$Signature_gene_mouse.style_symbol,signatures_mouse_b$Signature_genes))
 
 add_signatures_ortho <- function(obj_seurat, signature_file, level_signature){
   for(tissue in as.list(unique(signature_file[level_signature]))[[1]]){
@@ -99,4 +100,18 @@ find_best_resolution<- function(seurat_obj,level_signature){
     }
   }
   return(best)
+}
+
+
+seqgeq_file <- function(seurat_obj, list_genes, file_out){
+  SG_Header <- read.table("~/Documents/Header_SeqGeq.txt",sep="\t",header=F,row.names=1,check.names = F)
+  SG_Header <- unname(SG_Header)
+  
+  counts_matrix <- as.data.frame(seurat_obj[["RNA"]]$data) %>%
+    filter(row.names(.) %in% list_genes)
+  umap = t(seurat_obj[["umap"]]@cell.embeddings)
+  total = rbind(counts_matrix,umap)
+  
+  write.table(SG_Header, file = file_out,sep="\t")
+  suppressWarnings(write.table(total, file = file_out,sep="\t",append=T))
 }
