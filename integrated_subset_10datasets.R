@@ -81,10 +81,27 @@ write_csv(markers_1, "Res_1_PYMT_DEG_pval0.001_logFC1.csv")
 mono.de <- FindMarkers(myelo_int, ident.1 = "10", ident.2 = "12",group.by='Cluster_res1.2', verbose = FALSE)
 write.csv(mono.de, "Res1.2_Markers_clust10vs12.csv")
 
+#here
+DEG_forheat=as.data.frame(read_excel('Res_1_PYMT_DEG_pval0.001_logFC1.xlsx', 1))
+DEG_forheat = DEG_forheat[DEG_forheat$KEEP %in% c('x'),]
+myelo_int$Cluster_res1_order <- factor(
+  myelo_int$Cluster_res1,
+  levels = c(4,1,11,17,20,16,12,19,14,8,15,18,6,10,2,5,3,7,9,13)
+)
+DoHeatmap(myelo_int, features= DEG_forheat$gene,group.by = 'Cluster_res1_order')+ scale_fill_gradientn(colors = c("blue", "white", "red"))
+avPYMT <- AverageExpression(myelo_int,group.by ="RNA_snn_res.1")
+avPYMT <- avPYMT$RNA[rowSums(avPYMT$RNA) != 0, ] 
+avPYMT_a <- NormalizeData(avPYMT)
+avPYMT_a <- ScaleData(avPYMT_a,features = rownames(avPYMT))
+#avPYMT_scal = avPYMT_a@assays$RNA@layers$scale.data
+colnames(avPYMT_a) <- as.character(seq(1,20))
+avPYMT_a=avPYMT_a[DEG_forheat$gene,]
+Heatmap(avPYMT_a, name = "mat",cluster_rows =FALSE, show_column_dend = FALSE,column_names_side ='top',row_names_side = c("left"), show_row_dend = FALSE,column_order =c(4,1,11,17,20,16,12,19,14,8,15,18,6,10,2,5,3,7,9,13))
+
 dat_z = myelo_int.markers %>%
   group_by(cluter) %>%
   mutate(z_score = scale(y))
-
+d
 clustree(myelo_int, prefix = "RNA_snn_res.")
 
 saveRDS(myelo_int, "Integrated_10_total_DC.rds")
@@ -202,7 +219,7 @@ clustertest = Test@assays$RNA@layers$scale.data
 
 cor <- cor(clustertest, use = 'pairwise.complete.obs', method = 'spearman')
 colnames(cor)<-as.character(seq(1,20))
-rownames(cor)<-as.character(seq(1,2))
+rownames(cor)<-as.character(seq(1,20))
 
 callback = function(hc, mat){
   sv = svd(t(mat))$v[,c(2)]
@@ -230,3 +247,6 @@ myelo_int$MetaCluster[myelo_int$MetaCluster %in% c(13)]="Mt_genes"
 MetaCluster.markers <- FindAllMarkers(myelo_int,group.by ="MetaCluster", only.pos = TRUE,logfc.threshold = 1)
 MetaCluster.markers <- MetaCluster.markers[MetaCluster.markers$p_val_adj<0.001,]
 write_csv(MetaCluster.markers, "MetaCluster_PYMT_DEG_pval0.001_logFC1.csv")
+
+saveRDS(myelo_int, "Integrated_10_total_DC.rds")
+
