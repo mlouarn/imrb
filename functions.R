@@ -39,6 +39,22 @@ add_signatures_mouse <- function(obj_seurat, signature_file, level_signature){
   gc()
   return(obj_seurat)
 }
+add_signatures_human <- function(obj_seurat, signature_file, level_signature){
+  for(tissue in as.list(unique(signature_file[level_signature]))[[1]]){
+    if (tissue!=""){
+      human_mouse = signature_file[signature_file[level_signature]==tissue,]$Vizgen_Gene
+      print(tissue)
+      obj_seurat <- AddModuleScore_UCell(obj_seurat,
+                                         assay= 'RNA',
+                                         features = list(human_mouse),
+                                         name = tissue)
+      obj_seurat[[as.character(tissue)]] <- obj_seurat[[paste0('signature_1',tissue)]]
+    }
+  }
+  gc()
+  return(obj_seurat)
+}
+
 
 seurat_analyse <- function(obj_seurat){
   obj_seurat[["percent.mt"]] <- PercentageFeatureSet(obj_seurat, pattern = "^mt-")
@@ -114,4 +130,36 @@ seqgeq_file <- function(seurat_obj, list_genes, file_out){
   
   write.table(SG_Header, file = file_out,sep="\t")
   suppressWarnings(write.table(total, file = file_out,sep="\t",append=T))
+}
+
+visu_fgsea <- function(objMarkers,DB){
+  top_gobp=c()
+  gobp=data.frame(matrix(ncol = 1, nrow = 0))
+  colnames(gobp)<- c('pathway')
+  gobp_NES=data.frame(matrix(ncol = 1, nrow = 0))
+  colnames(gobp_NES)<- c('pathway')
+  for (clust in unique(objMarkers$cluster)){
+    tmp = objMarkers[objMarkers$cluster==clust,]
+    tmp$p_val_adj[tmp$p_val == 0] <- min(tmp$p_val_adj[tmp$p_val_adj > 0], na.rm = TRUE)
+    rankings <- sign(tmp$avg_log2FC)*(-log10(tmp$p_val_adj)) 
+    names(rankings) <- tmp$gene
+    
+    fgseaRes_gobp <- fgsea(DB, rankings, minSize=15, maxSize=500, nproc=1) %>% as.data.frame()
+    rownames(fgseaRes_gobp) <- fgseaRes_gobp$pathway
+    gobp_clust = fgseaRes_gobp %>% as.data.frame() %>% dplyr::select('pathway',"padj")
+    colnames(gobp_clust)<- c('pathway',clust)
+    gobp = merge(gobp, gobp_clust,by.x='pathway', all = TRUE)
+    gobp_clust = fgseaRes_gobp %>% as.data.frame() %>% dplyr::select('pathway',"NES")
+    colnames(gobp_clust)<- c('pathway',clust)
+    gobp_NES = merge(gobp_NES, gobp_clust,by.x='pathway', all = TRUE)
+    
+    fgseaRes_gobp = fgseaRes_gobp[fgseaRes_gobp$padj<=0.05,]
+    top5_gobp = fgseaRes_gobp[order(fgseaRes_gobp$padj), ] %>% slice_head(n = 5)
+    top_gobp = c(top_gobp, top5_gobp$pathway)
+  }
+  top_gobp=unique(top_gobp)
+  gobp_plot = gobp[gobp$pathway %in% top_gobp,]
+  gobp_plot_NES = gobp_NES[gobp_NES$pathway %in% top_gobp,]
+  newList <- list("top" = top_gobp, "padj" = gobp_plot,"NES" = gobp_plot_NES)
+  return(newList)
 }
