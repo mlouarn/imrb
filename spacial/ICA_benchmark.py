@@ -46,15 +46,22 @@ signature = pd.read_csv("/home/marine-louarn/Documents/test/20260204_Signatures_
 signature_v2 = pd.read_csv("/home/marine-louarn/ref/20251001  JDD_BreastK.csv")
 
 adata_myelo_test=adata_myelo.copy()
-top=2
-ic_tokeeps = ic_tokeep(adata_myelo_test, signature_v2[signature_v2['Family']=='Myeloid'],"Cell_Subset",topX=top)
-max_pc=10
-adata_myelo_test.obsm["X_ic_pca" ] = np.concatenate((adata_myelo_test.obsm["X_ica" ][:,ic_tokeeps], adata_myelo_test.obsm["X_pca" ][:,list(range(0,max_pc))]),axis=1)
-adata_myelo_test.varm["IC_PCs"] = np.concatenate((adata_myelo_test.varm["ICs"][:,ic_tokeeps], adata_myelo_test.varm["PCs" ][:,list(range(0,max_pc))]),axis=1)
 
-sc.pp.neighbors(adata_myelo_test, metric="cosine",use_rep="X_ic_pca",key_added="neigh_IC"+str(top)+"_PC"+str(max_pc))
-sc.tl.leiden(adata_myelo_test, flavor="igraph", n_iterations=-1, resolution=1.5,neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc),key_added="leiden_res1.5_IC"+str(top)+"_PC"+str(max_pc))
-sc.tl.umap(adata_myelo_test,key_added = "UMAP_IC"+str(top)+"_PC"+str(max_pc),neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc), min_dist=0.1)
+sc.pp.pca(adata, n_comps=50)
+ica(adata,n_components=100)
+ics = pd.DataFrame(adata.varm['ICs'])
+ics.index = (adata.var['gene_ids']).index
+
+for top in range(2,5):
+    ic_tokeeps = ic_tokeep(adata_myelo_test, signature_v2[signature_v2['Family']=='Myeloid'],"Cell_Subset",topX=top)
+    for max_pc in range(10,50,10):
+        adata_myelo_test.obsm["X_ic_pca" ] = np.concatenate((adata_myelo_test.obsm["X_ica" ][:,ic_tokeeps], adata_myelo_test.obsm["X_pca" ][:,list(range(0,max_pc))]),axis=1)
+        adata_myelo_test.varm["IC_PCs"] = np.concatenate((adata_myelo_test.varm["ICs"][:,ic_tokeeps], adata_myelo_test.varm["PCs" ][:,list(range(0,max_pc))]),axis=1)
+
+        sc.pp.neighbors(adata_myelo_test, metric="cosine",use_rep="X_ic_pca",key_added="neigh_IC"+str(top)+"_PC"+str(max_pc))
+        sc.tl.leiden(adata_myelo_test, flavor="igraph", n_iterations=-1, resolution=1.5,neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc),key_added="leiden_IC"+str(top)+"_PC"+str(max_pc))
+        sc.tl.umap(adata_myelo_test,key_added = "UMAP_IC"+str(top)+"_PC"+str(max_pc),neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc), min_dist=0.1)
+
 #sc.pl.embedding(adata_myelo_test, color="leiden_IC"+str(top)+"_PC"+str(max_pc),basis="UMAP_IC"+str(top)+"_PC"+str(max_pc))
 sc.pl.embedding(adata_myelo_test, color="leiden_ICPC",basis="umapICPC")
 sc.pl.embedding(adata_myelo, color="leiden_ICPC",basis="umapICPC")
@@ -71,64 +78,6 @@ adata_myelo_test.obs.loc[adata_myelo_test.obs['novae_domains_7']=='D984', 'novae
 
 to_seqgeq_2(adata_myelo_test,header_sg,"/home/marine-louarn/Documents/Xenium_Calderaro/20260529_Sample1_onlyMyelo_seqgeq_full.txt",adata.var_names.tolist())
 adata_myelo_test.write_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/20260529_Sample1_myelo_ICPC.h5ad")
-
-def to_seqgeq_2(adata, header_sg=str,file=str,genelist=list):
-    with open(file, "w") as f:
-        # write header
-        with open(header_sg) as header:
-            f.write(header.read())
-        # write barcodes
-        f.write("\t".join(adata.obs.cell_id)+"\n")
-        # keep only genes in signatures
-        genes_absent = [gene for gene in genelist if gene not in adata.var_names]
-        genes_present = [gene for gene in genelist if gene in adata.var_names]
-        genes_index = [adata.var_names.get_loc(gene) for gene in genes_present]
-        print(f'genes absent from adata {genes_absent}')
-
-        # write normalized counts
-        mat = adata.layers["scaled"].T # gene x cell change to "counts" 
-        for index in genes_index:
-            gene_name = adata.var_names[index]
-            row = mat[index,:].toarray()[0]
-            row_str = [str(x) for x in row]
-            f.write(gene_name + "\t" + "\t".join(row_str)+"\n")
-
-        # write UMAP
-        umap_x = adata.obsm['X_umap'][:,0]
-        umap_x_str = [str(x) for x in umap_x]
-        umap_y = adata.obsm['X_umap'][:,1]
-        umap_y_str = [str(y) for y in umap_y]
-        umap_icpc_x = adata.obsm['umapICPC'][:,0]
-        umap_icpc_x_str = [str(x) for x in umap_icpc_x]
-        umap_icpc_y = adata.obsm['umapICPC'][:,1]
-        umap_icpc_y_str = [str(y) for y in umap_icpc_y]
-        #umap_icpc2_10_x = adata.obsm['UMAP_IC2_PC10'][:,0]
-        #umap_icpc2_10_x_str = [str(x) for x in umap_icpc2_10_x]
-        #umap_icpc2_10_y = adata.obsm['UMAP_IC2_PC10'][:,1]
-        #umap_icpc2_10_y_str = [str(y) for y in umap_icpc2_10_y]
-        spatial_x = adata.obsm['spatial'][:,0]
-        spatial_x_str = [str(x) for x in spatial_x]
-        spatial_y = adata.obsm['spatial'][:,1]
-        spatial_y_str = [str(y) for y in spatial_y]
-        n_counts = adata.obs['n_counts']
-        n_counts_str = [str(y) for y in n_counts]
-        leiden_myelo = adata.obs['leiden_res1.5_IC2_PC10']#_myelo']
-        leiden_myelo_str = [str(y) for y in leiden_myelo]
-        f.write("umap_PC1" + "\t" + "\t".join(umap_x_str)+"\n")
-        f.write("umap_PC2" + "\t" + "\t".join(umap_y_str)+"\n")
-        f.write("umap_ICPC1" + "\t" + "\t".join(umap_icpc_x_str)+"\n")
-        f.write("umap_ICPC2" + "\t" + "\t".join(umap_icpc_y_str)+"\n")
-        #f.write("umap_IC2PC10_1" + "\t" + "\t".join(umap_icpc2_10_x_str)+"\n")
-        #f.write("umap_IC2PC10_2" + "\t" + "\t".join(umap_icpc2_10_y_str)+"\n")
-        f.write("Spatial_X" + "\t" + "\t".join(spatial_x_str)+"\n")
-        f.write("Spatial_Y" + "\t" + "\t".join(spatial_y_str)+"\n")
-        f.write("leiden_clusters_PC" + "\t" + "\t".join(adata.obs['leiden']) + "\n")
-        f.write("leiden_clusters_ICPC" + "\t" + "\t".join(adata.obs['leiden_ICPC']) + "\n")
-        f.write("leiden_res1.5_IC2PC10" + "\t" + "\t".join(leiden_myelo_str) + "\n")
-        f.write("nCount" + "\t" + "\t".join(n_counts_str) + "\n")
-        f.write("novae_domain_nb" + "\t" + "\t".join(adata.obs['novae_domain_nb']) + "\n")
-        f.write("CellTypist_nb" + "\t" + "\t".join(adata.obs['CellTypist_nb']) + "\n")
-
 
 #pseudobulk
 deg_mnp = pd.read_csv("/home/marine-louarn/ref/MNP_Verse_DEG_megaclusters.csv")
@@ -169,4 +118,106 @@ for i in mnp_pseudobulk_mat.columns :
         matrix[j][i]= len(overlap)
 
 sns.heatmap(matrix, annot=True,cmap="crest")
+plt.show()
+
+#Validation/scoring in sample 1 res1.5
+adata_myelo_1= sc.read_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/20260629_Sample1_myelo_noB_ICPC.h5ad")
+#sum exp gene of op in cluster
+import pyucell as uc
+
+signature_v2 = pd.read_csv("/home/marine-louarn/ref/20251001  JDD_BreastK.csv")
+signature_v2 = signature_v2[signature_v2['Family']=='Myeloid']
+
+filtered_signature = signature_v2[signature_v2['gene'].isin(adata_myelo_1.var_names.tolist())]
+marker_gene_dictionary = defaultdict(list)
+for idx, row in filtered_signature.iterrows():
+    marker_gene_dictionary[row['Cell_Subset']].append(row['gene']) #change for sub
+
+marker_gene_dictionary=dict(marker_gene_dictionary)
+uc.compute_ucell_scores(adata_myelo_1, signatures=marker_gene_dictionary, chunk_size=500)
+
+a = list(marker_gene_dictionary.keys())
+a = [x for x in a if str(x) != 'nan']
+a = [x+"_UCell" for x in a]
+tmp=adata_myelo_1.obs[a].copy()
+tmp['Unsure']=0.001
+adata_myelo_1.obs['U_cell_signature']=tmp.idxmax(axis=1)
+sc.pl.embedding(adata_myelo_1, color="U_cell_signature",basis='UMAP_IC2_PC10')
+sc.pl.embedding(adata_myelo_1, color=['Macro FOLR2_UCell', 'Macro IL4I1_UCell', 'Macro M1_UCell', 'Macro M2_UCell', 'Macro pressure_UCell', 'Macro TREM2_UCell', 'MGC_UCell', 'pan-Macro_UCell', 'CCR7 mDC_UCell', 'DC CD207_UCell', 'DC1_UCell', 'DC2+3_UCell', 'Mono_UCell', 'leiden_res1.5_IC2_PC10'],basis='UMAP_IC2_PC10')
+pd.crosstab(adata_myelo_1.obs["MNP_cellType"], adata_myelo_1.obs["U_cell_signature"])
+
+df = pd.DataFrame(columns=a,index=adata_myelo_1.obs['leiden_res1.5_IC2_PC10'].unique())
+for j in adata_myelo_1.obs['leiden_res1.5_IC2_PC10'].unique():
+    i_index= adata_myelo_1.obs[adata_myelo_1.obs['leiden_res1.5_IC2_PC10']==j]
+    mat=i_index[a].copy()
+    mean=mat.mean(axis=0)
+    df.loc[j]=pd.to_numeric(mean)
+
+
+df = df[['Macro FOLR2_UCell', 'Macro IL4I1_UCell', 'Macro TREM2_UCell', 'CCR7 mDC_UCell', 'DC CD207_UCell', 'DC1_UCell', 'DC2+3_UCell', 'Mono_UCell']].apply(pd.to_numeric)
+df=df.T
+df_norm = df.div(df.sum(axis=1), axis=0)
+
+sns.heatmap(df_norm,cmap="crest")
+plt.show()
+
+
+
+#compared to Seqgeq signature
+mean_signature = pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1/SyntParam.csv", skiprows=5,index_col='Gene')
+mean_signature=mean_signature.loc[['DC1Mean','MacroFOLR2Mean','MacroIL4I1Mean','MacroTREM2Mean','Mast cellsMean','mregDCMean','pan-BMean','pan-KupfferCellsMean','PMNMean','cMoMean']]
+#mean_signature.columns =mean_signature.columns[1:].append(pd.Index(['aaaajiih-1']))
+mean_signature.columns=pd.Index(['aaaajiih-1']).append(mean_signature.columns[1:])
+df = pd.DataFrame(columns=mean_signature.index,index=adata_myelo_1.obs['leiden_res1.5_IC2_PC10'].unique())
+for j in adata_myelo_1.obs['leiden_res1.5_IC2_PC10'].unique():
+    i_index= adata_myelo_1.obs[adata_myelo_1.obs['leiden_res1.5_IC2_PC10']==j]
+    tmp = mean_signature[i_index['cell_id']]
+    tmp=tmp.T
+    mean=tmp.mean()
+    df.loc[j]=pd.to_numeric(mean)
+
+df[mean_signature.index] = df[mean_signature.index].apply(pd.to_numeric)
+
+sns.heatmap(df)
+plt.show()
+
+#pd.crosstab(adata_myelo_1.obs["MNP_cellType"], adata_myelo_1.obs["leiden_IC2_PC10"])
+
+#distance umap
+import numpy as np
+from scipy.spatial.distance import pdist
+dist = pd.DataFrame(columns=adata_myelo_1.obs['MNP_cellType'].unique(),index=[0])
+for i in adata_myelo_1.obs['MNP_cellType'].unique():
+    tmp = adata_myelo_1[adata_myelo_1.obs['MNP_cellType']==i].copy()
+    dist[i].values[0] = pdist(tmp.obsm['leiden_res1.5_IC2_PC10']).mean() 
+
+
+#jaccard annotated
+
+df = pd.DataFrame(columns=adata_myelo_1.obs['MNP_cellType'].unique(),index=adata_myelo_1.obs['leiden_res1.5_IC2_PC10'].unique())
+for i in adata_myelo_1.obs['MNP_cellType'].unique():
+    row=[]
+    for j in adata_myelo_1.obs['leiden_res1.5_IC2_PC10'].unique():
+        i_index= adata_myelo_1.obs[adata_myelo_1.obs['MNP_cellType']==i].index
+        j_index= adata_myelo_1.obs[adata_myelo_1.obs['leiden_res1.5_IC2_PC10']==j].index
+        intersection = len(i_index.intersection(j_index))
+        union = len(i_index.union(j_index))
+        row.append(intersection/union)
+    df[i]=row
+
+
+def score_jaccard_mat(df):
+    count_i = 0
+    count_j = 0
+    for i in df.index:
+        sum_i = (df.iloc[[i]]>0.3).sum()
+        count_i = count_i+(sum_i==1).sum()
+    for j in df.columns:
+        sum_j=(df[j]>0.3).sum()
+        count_j = count_j+(sum_j>=1).sum()
+    score = (count_i+count_j)/(len(df.index)+len(df.columns))
+    return score
+
+
+sns.heatmap(df)
 plt.show()

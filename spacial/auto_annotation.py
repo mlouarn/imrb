@@ -17,7 +17,7 @@ new_model = celltypist.train(hcc_dutertre[:, hcc_dutertre.var.highly_variable], 
 new_model.write('/home/marine-louarn/Documents/Xenium_Calderaro/refs/model_HCC.pkl')
 
 sample1= sc.read_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/20260528_Sample1_novae.h5ad")
-sample1.X=sample1.layers['counts']
+sample1.X=sample1.layers['counts'].copy()
 sc.pp.normalize_total(sample1, target_sum=1e4)
 sc.pp.log1p(sample1)
 
@@ -31,7 +31,7 @@ adata.write_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/20260602_Sample
 adata_simple= sc.read_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/20260602_Sample1_SimpleRef.h5ad")
 sdata_v2 = sd.read_zarr("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1.zarr")
 sdata_v2["table"] = adata_simple
-adata_simple.X = adata_simple.layers["counts"] 
+adata_simple.X = adata_simple.layers["counts"].copy()
 
 sopa.utils.tangram_annotate(sdata_v2, hcc, "Cell_Type")
 adata_simple.obs=adata_simple.obs.rename(columns={"Cell_Type": "Annotation_Tangram"})
@@ -45,9 +45,9 @@ adata_scDutertre= sc.read_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/2
 hcc_dutertre=sc.read_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/refs/GSE156625_HCCscanpyobj.h5ad")
 
 features_obj = adata_scDutertre.var.index
-count_matrix_obj = adata_scDutertre.layers['counts'].T
+count_matrix_obj = adata_scDutertre.layers['counts'].T.copy()
 features_ref = hcc.var.index
-count_matrix_ref = hcc.layers['counts'].T
+count_matrix_ref = hcc.layers['counts'].T.copy()
 label_ref = hcc.obs['Cell_Type']
 results = singler.annotate_single(
     test_data = count_matrix_obj,

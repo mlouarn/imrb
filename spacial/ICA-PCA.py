@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+
 def ica(adata, n_components, inplace=True, **kwargs): 
     from sklearn.decomposition import FastICA 
     ica_transformer = FastICA(n_components=n_components, **kwargs) 
@@ -20,8 +21,8 @@ def ica(adata, n_components, inplace=True, **kwargs):
         adata.varm["ICs"] = ica_transformer.components_.T 
     else:
         return ica_transformer 
-    
-def ic_tokeep(adata, signature,signature_level=str,topX=2):
+
+def ic_tokeep(adata,ics, signature,signature_level=str,topX=2):
   ic_tokeeps = []
   for cluster in signature[signature_level].unique():
       genes = signature.loc[signature[signature_level]==cluster]
@@ -47,16 +48,15 @@ ics = pd.DataFrame(adata.varm['ICs'])
 ics.index = (adata.var['gene_ids']).index
 
 
-ic_tokeeps = ic_tokeep(adata, signature,"Major_Cell_Populations")
+ic_tokeeps = ic_tokeep(adata,ics, signature,"Major_Cell_Populations")
 adata.obsm["X_ic_pca" ] = np.concatenate((adata.obsm["X_ica" ][:,ic_tokeeps], adata.obsm["X_pca" ]),axis=1)
 adata.varm["IC_PCs"] = np.concatenate((adata.varm["ICs"][:,ic_tokeeps], adata.varm["PCs" ]),axis=1)
 
 sc.pp.neighbors(adata, metric="cosine",use_rep="X_ic_pca",key_added='neigh_ICPC')
 sc.tl.leiden(adata, flavor="igraph", n_iterations=-1, resolution=1,neighbors_key='neigh_ICPC',key_added='leiden_ICPC')
 sc.tl.umap(adata,key_added = 'umapICPC',neighbors_key='neigh_ICPC', min_dist=0.1)
-colors=['#023fa5','#7d87b9','#11c638','#ef9708','#0fcfc0','#9cded6','#d5eae7','#f3e1eb','#f6c4e1','#f79cd4','#bec1d4','#d6bcc0','#bb7784','#8e063b','#4a6fe3','#8595e1','#b5bbe3','#e6afb9','#e07b91','#d33f6a','#8dd593','#c6dec7','#ead3c6','#f0b98d']
-sc.pl.embedding(adata, color="leiden_ICPC",basis='umapICPC',palette=colors)
-
+#colors=['#023fa5','#7d87b9','#11c638','#ef9708','#0fcfc0','#9cded6','#d5eae7','#f3e1eb','#f6c4e1','#f79cd4','#bec1d4','#d6bcc0','#bb7784','#8e063b','#4a6fe3','#8595e1','#b5bbe3','#e6afb9','#e07b91','#d33f6a','#8dd593','#c6dec7','#ead3c6','#f0b98d']
+sc.pl.embedding(adata, color="leiden_ICPC",basis='umapICPC',legend_loc='on data')
 
 
 #####
@@ -229,102 +229,3 @@ fig = go.Figure(data=[go.Sankey(
 fig.update_layout(title_text="Sankey Diagram: leiden using IC to predicted (CellTypist)", font_size=10)
 fig.show() 
 
-#subset
-myelo_cell = pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Xemnium_Sample1_MNP_ToEXPORT.csv", skiprows=5)
-myelo_cell = list(myelo_cell.columns)
-adata= sc.read_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_ICPC.h5ad")
-
-adata_myelo = adata[adata.obs['cell_id'].isin(myelo_cell)].copy()
-adata_myelo.X= adata.layers["counts"]
-sc.pp.normalize_total(adata_myelo)
-sc.pp.log1p(adata_myelo)
-adata_myelo.layers["lognorm"] = adata_myelo.X.copy()
-sc.pp.highly_variable_genes(adata_myelo, flavor="seurat", n_top_genes=2000)
-sc.pp.scale(adata_myelo, zero_center=False)
-adata_myelo.layers["scaled"] = adata_myelo.X.copy()
-
-ica(adata_myelo,n_components=50)
-ics = pd.DataFrame(adata_myelo.varm['ICs'])
-ics.index = (adata_myelo.var['gene_ids']).index
-sc.pp.pca(adata_myelo, n_comps=50)
-sc.pp.neighbors(adata_myelo, metric="cosine")
-sc.tl.leiden(adata_myelo, flavor="igraph", n_iterations=-1, resolution=1)
-sc.tl.umap(adata_myelo, min_dist=0.1)
-#sc.pl.umap(adata_myelo, color="leiden")
-
-ic_tokeeps = ic_tokeep(adata_myelo, signature_v2[signature_v2['Family']=='Myeloid'],"Cell_Subset",5)
-adata_myelo.obsm["X_ic_pca" ] = np.concatenate((adata_myelo.obsm["X_ica" ][:,ic_tokeeps], adata_myelo.obsm["X_pca" ]),axis=1)
-adata_myelo.varm["IC_PCs"] = np.concatenate((adata_myelo.varm["ICs"][:,ic_tokeeps], adata_myelo.varm["PCs" ]),axis=1)
-
-sc.pp.neighbors(adata_myelo, metric="cosine",use_rep="X_ic_pca",key_added='neigh_ICPC_5')
-sc.tl.leiden(adata_myelo, flavor="igraph", n_iterations=-1, resolution=1,neighbors_key='neigh_ICPC_5',key_added='leiden_ICPC_5')
-sc.tl.umap(adata_myelo,key_added = 'umapICPC_5',neighbors_key='neigh_ICPC_5', min_dist=0.1)
-sc.pl.embedding(adata_myelo, color="leiden_ICPC_5",basis='umapICPC')
-list_tokeep= signature_v2['gene'].tolist()
-to_seqgeq(adata_myelo,header_sg,"/home/marine-louarn/Documents/Xenium_Calderaro/20260528_Sample1_onlyMyelo_seqgeq.txt",list_tokeep)
-to_seqgeq(adata_myelo,header_sg,"/home/marine-louarn/Documents/Xenium_Calderaro/20260528_Sample1_onlyMyelo_seqgeq_full.txt",adata.var_names.tolist())
-
-adata_myelo.write_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/20260528_Sample1myelo_ICPC.h5ad")
-adata_myelo= sc.read_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/20260528_Sample1myelo_ICPC.h5ad")
-
-
-#add annot
-Bcells= list(pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_Myelo/Bcells.csv", skiprows=5).columns)
-cd1c_DC= list(pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_Myelo/CD1C+_DC.csv", skiprows=5).columns)
-folr2= list(pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_Myelo/FOLR2_Mac.csv", skiprows=5).columns)
-il4i1= list(pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_Myelo/IL4I1_Mac.csv", skiprows=5).columns)
-kc= list(pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_Myelo/KC.csv", skiprows=5).columns)
-dc1= list(pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_Myelo/Maybe_DC1.csv", skiprows=5).columns)
-mono= list(pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_Myelo/mono.csv", skiprows=5).columns)
-pmn= list(pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_Myelo/PMN.csv", skiprows=5).columns)
-trem= list(pd.read_csv("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1_Myelo/TREM2_Mac.csv", skiprows=5).columns)
-
-adata_myelo.obs['MNP_cellType']= 'unassigned'
-adata_myelo.obs.loc[adata_myelo.obs['cell_id'].isin(Bcells), 'MNP_cellType'] = 'Bcells'
-adata_myelo.obs.loc[adata_myelo.obs['cell_id'].isin(cd1c_DC), 'MNP_cellType'] = 'CD1C+_DC'
-adata_myelo.obs.loc[adata_myelo.obs['cell_id'].isin(folr2), 'MNP_cellType'] = 'FOLR2_Mac'
-adata_myelo.obs.loc[adata_myelo.obs['cell_id'].isin(il4i1), 'MNP_cellType'] = 'IL4I1_Mac'
-adata_myelo.obs.loc[adata_myelo.obs['cell_id'].isin(kc), 'MNP_cellType'] = 'KC'
-adata_myelo.obs.loc[adata_myelo.obs['cell_id'].isin(dc1), 'MNP_cellType'] = 'DC1'
-adata_myelo.obs.loc[adata_myelo.obs['cell_id'].isin(mono), 'MNP_cellType'] = 'Mono'
-adata_myelo.obs.loc[adata_myelo.obs['cell_id'].isin(pmn), 'MNP_cellType'] = 'PMN'
-adata_myelo.obs.loc[adata_myelo.obs['cell_id'].isin(trem), 'MNP_cellType'] = 'TREM2_Mac'
-sc.pl.embedding(adata_myelo, color="MNP_cellType",basis='umapICPC')
-
-sdata2 = sd.read_zarr("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1.zarr")
-sdata2.tables["table"]=adata_myelo
-sdata2.tables["table"].obs["region"] = "cell_boundaries"
-sdata2.set_table_annotates_spatialelement("table", region="cell_boundaries")
-leinden = sdata2.tables['table'].obs['MNP_cellType']
-leinden.index= sdata2.tables['table'].obs.cell_id
-sdata2['cell_boundaries']['MNP_cellType'] = sdata2.tables['table'].obs['MNP_cellType']
-sdata2.pl.render_shapes("cell_boundaries", color="MNP_cellType").pl.show()
-plt.show()
-
-
-
-#markers
-sc.tl.rank_genes_groups(adata_myelo, 'leiden_ICPC', method='wilcoxon', key_added = "wilcoxon")
-markers_myelo = sc.get.rank_genes_groups_df(adata_myelo,group=None,key='wilcoxon')
-deg_mnp = pd.read_csv("/home/marine-louarn/ref/DEG_MNP_Fig1E.csv")
-
-#pseudobulk
-myelo_pseudobulk = sc.get.aggregate(adata_myelo, by=["leiden_ICPC"], func="sum", layer="counts")
-ref_mnp = sc.read_h5ad("/home/marine-louarn/ref/2021_MNP_Verse.h5ad")
-mnp_pseudobulk = sc.get.aggregate(ref_mnp, by=["MegaCluster"], func="sum", layer="counts")
-
-genes_to_keep = list(set(deg_mnp['Gene']) & set(adata_myelo.var_names))
-myelo_pseudobulk.X = myelo_pseudobulk.layers['sum']
-myelo_pseudobulk_mat = myelo_pseudobulk.to_df().T
-myelo_pseudobulk_mat = myelo_pseudobulk_mat[myelo_pseudobulk_mat.index.isin(genes_to_keep)]
-
-mnp_pseudobulk.X = mnp_pseudobulk.layers['sum']
-mnp_pseudobulk_mat = mnp_pseudobulk.to_df().T
-mnp_pseudobulk_mat = mnp_pseudobulk_mat[mnp_pseudobulk_mat.index.isin(genes_to_keep)]
-
-mat_both = pd.concat([mnp_pseudobulk_mat, myelo_pseudobulk_mat], axis=1)
-cor = mat_both.corr()
-cor = cor[mnp_pseudobulk_mat.columns]
-cor = cor[cor.index.isin(myelo_pseudobulk_mat.columns)]
-sns.heatmap(cor, annot=True)
-plt.show()
