@@ -186,10 +186,13 @@ plt.show()
 #distance umap
 import numpy as np
 from scipy.spatial.distance import pdist
-dist = pd.DataFrame(columns=adata_myelo_1.obs['MNP_cellType'].unique(),index=[0])
-for i in adata_myelo_1.obs['MNP_cellType'].unique():
-    tmp = adata_myelo_1[adata_myelo_1.obs['MNP_cellType']==i].copy()
-    dist[i].values[0] = pdist(tmp.obsm['leiden_res1.5_IC2_PC10']).mean() 
+dist = pd.DataFrame(columns=adata_myelo_test.obs['MNP_cellType'].unique(),index=list(adata_myelo_test.obsm.keys()))
+j=0
+for k in list(adata_myelo_test.obsm.keys()):
+	for i in adata_myelo_test.obs['MNP_cellType'].unique():
+		tmp = adata_myelo_test[adata_myelo_test.obs['MNP_cellType']==i].copy()
+		dist[i].values[j] = pdist(tmp.obsm[k]).mean() 
+	j+=1
 
 
 #jaccard annotated
