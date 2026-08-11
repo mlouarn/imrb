@@ -38,6 +38,22 @@ def ic_tokeep(adata,ics, signature,signature_level=str,topX=2):
   ic_tokeeps = list(set(ic_tokeeps))
   return ic_tokeeps
 
+def ic_tokeep_deg(adata,ics, file_deg,topX=2):
+  ic_tokeeps = []
+  for cluster in file_deg['cluster'].unique():
+      genes = file_deg.loc[file_deg['cluster']==cluster]
+      genes = genes['gene'].unique().tolist()
+      genes_keeps = list(set(genes) & set(ics.index))
+      top_ics=[]
+      if genes_keeps!=[]:
+        ics_genes = ics.loc[genes_keeps]
+        sum_ics = ics_genes.sum().abs().tolist()
+        top_ics = sorted(range(len(sum_ics)), key=lambda i: sum_ics[i])[-topX:] 
+      ic_tokeeps.append(top_ics)
+  ic_tokeeps = sum(ic_tokeeps,[])
+  ic_tokeeps = list(set(ic_tokeeps))
+  return ic_tokeeps
+
 signature = pd.read_csv("/home/marine-louarn/Documents/test/20260204_Signatures_Cell_populations_HUMAN.csv")
 signature_v2 = pd.read_csv("/home/marine-louarn/ref/20251001  JDD_BreastK.csv")
 adata = sc.read_h5ad("/home/marine-louarn/Documents/Xenium_Calderaro/Sample1.h5ad")
