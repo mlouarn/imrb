@@ -163,3 +163,58 @@ visu_fgsea <- function(objMarkers,DB){
   newList <- list("top" = top_gobp, "padj" = gobp_plot,"NES" = gobp_plot_NES)
   return(newList)
 }
+
+
+FindPhenograph = function(object, k=30, cluster.name='pheno_clusters', reduction='pca'){
+  #' Works like FindClusters
+  mtx = object@reductions[[reduction]]@cell.embeddings
+  pheno_out = Rphenograph(mtx, k=k)
+  pheno_clusters = factor(membership(pheno_out[[2]]))
+  names(pheno_clusters) = rownames(mtx)
+  object@meta.data[cluster.name] = pheno_clusters
+  return(object)
+}
+
+export_to_sg = function(seu, output_sg_file, genes_to_export, reductions, metadata_columns){
+  #' Export a Seurat object to SeqGeq
+  #'
+  #' From a seurat object export the data matrix and selected reductions and metadata to a SeqGeq file 
+  #' If there is an ADT layer will also export the ADT data matrix
+  #' @param seu the seurat object
+  #' @param output_sg_file the path of the output seqgeq .txt file
+  #' @param genes_to_export vector of genes to export
+  #' @param reductions vector of reductions like c("umap")
+  #' @param metadata_columns vector of metadata like c("orig.ident"), the metadata needs to be numeric-transformable because SeqGeq can only read numeric values
+  #' 
+
+  ## keep only the keys to meta.data and reductions that are in the seurat object
+  reductions = reductions[which(reductions %in% names(seu@reductions))]
+  metadata_columns = metadata_columns[which(metadata_columns %in% colnames(seu@meta.data))]
+
+  
+  message("reading to dense matrix")
+  counts_matrix = as.data.frame(Matrix::t(seu[["RNA"]]$data[rownames(seu) %in% genes_to_export,])) ## Matrix::t can deal with sparse
+  has_ADT = "ADT" %in% names(seu@assays)
+  if (has_ADT) {
+   ADT_matrix = as.data.frame(Matrix::t(seu[["ADT"]]$data))
+   counts_matrix = bind_cols(counts_matrix, ADT_matrix)
+  }
+  message("reading reductions and metadata")
+  df_reductions = seu@reductions[reductions]%>%
+    lapply(.,function(reduc){return(as.data.frame(reduc@cell.embeddings))})%>%
+    bind_rows()
+  df_metadata = seu@meta.data[metadata_columns]
+  
+  message("concatenating")
+  df = bind_cols(list(df_reductions, df_metadata, counts_matrix))%>%
+    t()%>%as.data.frame() 
+  # we only transpose now because it is faster (avoids the need to convert the types of metadata) 
+  
+  
+  message("writing")
+  SG_HEADER = c("", "Expression", "ParamsInRows", "Ic", "Iv", "")%>%
+    data.frame(.,row.names = c("[Metadata]", "$DataType", "$Organization", "$ParamTypes", "$EventTypes", "[Data]"))%>%
+    unname()
+  write.table(SG_HEADER, file = output_sg_file, sep="\t")
+  write.table(df, file = output_sg_file, sep="\t", append=T)
+}
