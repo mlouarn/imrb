@@ -218,3 +218,39 @@ export_to_sg = function(seu, output_sg_file, genes_to_export, reductions, metada
   write.table(SG_HEADER, file = output_sg_file, sep="\t")
   write.table(df, file = output_sg_file, sep="\t", append=T)
 }
+
+
+seurat_reintegration <- function(seu){
+  #' uses seurat v5 integration
+  seu[['RNA']] <- split(seu[['RNA']], f = seu$orig.ident)
+  
+  seu <- NormalizeData(seu)
+  seu <- FindVariableFeatures(seu)
+  seu <- ScaleData(seu)
+  seu <- RunPCA(seu)
+  seu <- IntegrateLayers(object = seu, method = CCAIntegration, 
+                         orig.reduction = "pca", new.reduction = "cca",
+                         k.weight=30, verbose = FALSE)
+  seu[["RNA"]] <- JoinLayers(seu[["RNA"]])
+  seu <- FindNeighbors(seu, reduction = "cca",
+                       dims = 1:50)
+  seu <- RunUMAP(seu, dims = 1:50, 
+                 reduction = "cca", 
+                 min.dist = 0.05, reduction.name = "umap")
+  return(seu)
+}
+
+
+extract_cellids_from_SG = function(SG_file){
+  SG_df = read.csv(SG_file, skip = 5, header = T)
+  cellids = colnames(SG_df)[2:length(colnames(SG_df))]
+  return(cellids)
+}
+
+subset_seurat_from_SG = function(seu, cellids){
+  if (length(intersect(colnames(seu), cellids))==0){
+    # SG replaces - with . we have to change it back if the original had -
+    cellids = str_replace_all(cellids, "\\.", "-")
+  }
+  return(subset(seurat_obj, cells = cellids))
+}
