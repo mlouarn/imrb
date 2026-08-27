@@ -1,10 +1,10 @@
 
 #list of signature genes
 
-signatures_mouse = read.csv("~/Documents/Alexandre_mouse/Done/signature.v1.csv")
-signatures_mouse = signatures_mouse[signatures_mouse$Keep_for_initial_screening=='y',]
-signatures_mouse_b = read.csv("~/Documents/Alexandre_mouse/signature_boissonnas.v1.csv")
-genes_signature = unique(c(signatures_mouse$Signature_gene_mouse.style_symbol,signatures_mouse_b$Signature_genes))
+# signatures_mouse = read.csv("~/Documents/Alexandre_mouse/Done/signature.v1.csv")
+# signatures_mouse = signatures_mouse[signatures_mouse$Keep_for_initial_screening=='y',]
+# signatures_mouse_b = read.csv("~/Documents/Alexandre_mouse/signature_boissonnas.v1.csv")
+# genes_signature = unique(c(signatures_mouse$Signature_gene_mouse.style_symbol,signatures_mouse_b$Signature_genes))
 
 add_signatures_ortho <- function(obj_seurat, signature_file, level_signature){
   for(tissue in as.list(unique(signature_file[level_signature]))[[1]]){
@@ -247,10 +247,15 @@ extract_cellids_from_SG = function(SG_file){
   return(cellids)
 }
 
-subset_seurat_from_SG = function(seu, cellids){
+fix_cellids = function(cellids, seu){
   if (length(intersect(colnames(seu), cellids))==0){
     # SG replaces - with . we have to change it back if the original had -
     cellids = str_replace_all(cellids, "\\.", "-")
   }
+  return(cellids)
+}
+
+subset_seurat_from_SG = function(seu, cellids){
+  cellids = fix_cellids(cellids, seu)
   return(subset(seurat_obj, cells = cellids))
 }
