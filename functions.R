@@ -366,7 +366,7 @@ plot_full_layout_density = function(seu, reduction="umap",
 #' can be used directly with UCell:
 #' seu = AddModuleScore_UCell(seu, features = list_signatures, name=NULL)
 csv2signature = function(csv_signature_files){
-  signature_names = str_extract(csv_signature_files, "(?<=/)[a-zA-Z-_\\.]*(?=\\.csv)")
+  signature_names = str_extract(basename(csv_signature_files), ".*(?=\\.csv)")
   signature_df = lapply(csv_signature_files, read.csv, header=F)
   list_signatures = lapply(signature_df, unlist, use.names=F)
   names(list_signatures) = signature_names
