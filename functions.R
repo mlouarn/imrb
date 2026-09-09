@@ -356,3 +356,19 @@ plot_full_layout_density = function(seu, reduction="umap",
   final_ggp = wrap_plots(Reduce(c, list(ggps_signature, ggp_density, ggps_metadata)))
   return(final_ggp) 
 }
+
+
+#' extract the signatures from a vector of csv files 
+#' csv files with a single column (no title) with just a list of genes
+#' with the name of the signature as the filename
+#' like the signatures for SeqGeq
+#' outputs a named list containing the signatures
+#' can be used directly with UCell:
+#' seu = AddModuleScore_UCell(seu, features = list_signatures, name=NULL)
+csv2signature = function(csv_signature_files){
+  signature_names = str_extract(csv_signature_files, "(?<=/)[a-zA-Z-_\\.]*(?=\\.csv)")
+  signature_df = lapply(csv_signature_files, read.csv, header=F)
+  list_signatures = lapply(signature_df, unlist, use.names=F)
+  names(list_signatures) = signature_names
+  return(list_signatures)
+}
