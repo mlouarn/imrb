@@ -1,6 +1,16 @@
+library(Seurat)
+library(tibble)
+library(dplyr)
+library(stringr)
+library(readr)
+library(Rphenograph)
+
+library(patchwork) # install.packages('patchwork')
+library(UCell) # BiocManager::install("UCell")
+library(scCustomize) # install.packages("scCustomize")
+library(ggpointdensity) # install.packages("ggpointdensity") #devtools::install_github("LKremer/ggpointdensity")
 
 #list of signature genes
-
 # signatures_mouse = read.csv("~/Documents/Alexandre_mouse/Done/signature.v1.csv")
 # signatures_mouse = signatures_mouse[signatures_mouse$Keep_for_initial_screening=='y',]
 # signatures_mouse_b = read.csv("~/Documents/Alexandre_mouse/signature_boissonnas.v1.csv")
@@ -194,15 +204,18 @@ export_to_sg = function(seu, output_sg_file, genes_to_export, reductions, metada
   
   message("reading to dense matrix")
   counts_matrix = as.data.frame(Matrix::t(seu[["RNA"]]$data[rownames(seu) %in% genes_to_export,])) ## Matrix::t can deal with sparse
-  has_ADT = "ADT" %in% names(seu@assays)
-  if (has_ADT) {
-   ADT_matrix = as.data.frame(Matrix::t(seu[["ADT"]]$data))
-   counts_matrix = bind_cols(counts_matrix, ADT_matrix)
-  }
-  message("reading reductions and metadata")
+  # has_ADT = "ADT" %in% names(seu@assays)
+  # if (has_ADT) {
+  #  ADT_matrix = as.data.frame(Matrix::t(seu[["ADT"]]$data))
+  #  counts_matrix = rownames_to_column(counts_matrix,"barcode")%>%
+  #    left_join(rownames_to_column(ADT_matrix, "barcode"), by = "barcode")%>%
+  #    column_to_rownames("barcode")
+  # }
+  message("reading reductions")
   df_reductions = seu@reductions[reductions]%>%
     lapply(.,function(reduc){return(as.data.frame(reduc@cell.embeddings))})%>%
-    bind_rows()
+    bind_cols()
+  message("reading metadata")
   df_metadata = seu@meta.data[metadata_columns]
   
   message("concatenating")
@@ -242,7 +255,8 @@ seurat_reintegration <- function(seu){
 
 
 extract_cellids_from_SG = function(SG_file){
-  SG_df = read.csv(SG_file, skip = 5, header = T)
+  # SG_df = read.csv(SG_file, skip = 5, header = T) -> adds X to the start of every column name
+  SG_df = read_csv(SG_file, skip = 5)
   cellids = colnames(SG_df)[2:length(colnames(SG_df))]
   return(cellids)
 }
@@ -255,7 +269,90 @@ fix_cellids = function(cellids, seu){
   return(cellids)
 }
 
-subset_seurat_from_SG = function(seu, cellids){
+#' subset a seurat object with the cells in a csv SeqGeq file
+#' @param seu seurat object
+#' @param SG_file the path to the csv SeqGeq file
+subset_seurat_from_SG = function(seu, SG_file){
+  cellids = extract_cellids_from_SG(SG_file)
   cellids = fix_cellids(cellids, seu)
-  return(subset(seurat_obj, cells = cellids))
+  return(subset(seu, cells = cellids))
+}
+
+
+
+
+DensityPlot = function(seu, reduction = "umap"){
+  dimreduc = seu@reductions[[reduction]]@cell.embeddings
+  x_label = colnames(dimreduc)[1]
+  y_label = colnames(dimreduc)[2]
+  p = ggplot(mapping = aes(x = dimreduc[,1], y = dimreduc[,2]))+
+    geom_pointdensity()+
+    paletteer::scale_color_paletteer_c("ggthemes::Red-Green-Gold Diverging", direction = -1)+
+    theme_classic()+
+    theme(plot.title = element_text(face="bold"))+
+    labs(x = x_label, y = y_label, title = "Density")
+  return(p)
+}
+
+#' for the layout function, to plot multiple feature plots with a better paletteer coloring
+.FeaturePlot_color = function(features, seu){
+  p = FeaturePlot(seu, features = features, order = T)+
+    paletteer::scale_color_paletteer_c("ggthemes::Red-Green-Gold Diverging", direction = -1)
+  return(p)
+}
+#' for the layout function, to plot multiple feature density plots with a better paletteer coloring
+.DensityFeaturePlot_color = function(features, seu){
+  p = Plot_Density_Custom(seu, features)+
+    paletteer::scale_color_paletteer_c("ggthemes::Red-Green-Gold Diverging", direction = -1)
+  return(p)
+}
+
+#' make FeaturePlots for each signature
+#' and DimPlot for each metadata specified, 
+#' and a cell density plot
+#' all with good colors
+#' returns a ggplot object that can be saved with ggsave
+#' @param signatures_to_plot a vector of the signatures (obtained with Ucell) or the genes to plot
+#' @param metadata_to_plot a vector of all the metadatas to plot (like orig.ident, or seurat_clusters)
+plot_full_layout = function(seu, reduction="umap", 
+                           signatures_to_plot=rownames(seu)[1:4], 
+                           metadata_to_plot="orig.ident"){
+  ggps_signature = lapply(signatures_to_plot, .FeaturePlot_color, seu)
+  ggp_density = DensityPlot(seu)
+  ggps_metadata = lapply(metadata_to_plot, function(metadata, seu){
+    if (nrow(unique(seu@meta.data[metadata]))>22){
+      return(DimPlot(seu, group.by = metadata))
+      }
+    else {
+      return(DimPlot(seu, group.by = metadata)+
+                       paletteer::scale_color_paletteer_d("Polychrome::kelly"))
+    }
+  }, seu)
+  final_ggp = wrap_plots(Reduce(c, list(ggps_signature, ggp_density, ggps_metadata)))
+  return(final_ggp)
+}
+
+#' make density FeaturePlots (scCustomize::Plot_Density_Custom) for each signature
+#' and DimPlot for each metadata specified, 
+#' and a cell density plot
+#' all with good colors
+#' returns a ggplot object that can be saved with ggsave
+#' @param signatures_to_plot a vector of the signatures (obtained with Ucell) or the genes to plot
+#' @param metadata_to_plot a vector of all the metadatas to plot (like orig.ident, or seurat_clusters)
+plot_full_layout_density = function(seu, reduction="umap", 
+                            signatures_to_plot=rownames(seu)[1:4], 
+                            metadata_to_plot="orig.ident"){
+  ggps_signature = lapply(signatures_to_plot, .DensityFeaturePlot_color, seu)
+  ggp_density = DensityPlot(seu)
+  ggps_metadata = lapply(metadata_to_plot, function(metadata, seu){
+    if (nrow(unique(seu@meta.data[metadata]))>22){
+      return(DimPlot(seu, group.by = metadata))
+    }
+    else {
+      return(DimPlot(seu, group.by = metadata)+
+               paletteer::scale_color_paletteer_d("Polychrome::kelly"))
+    }
+  }, seu)
+  final_ggp = wrap_plots(Reduce(c, list(ggps_signature, ggp_density, ggps_metadata)))
+  return(final_ggp) 
 }
