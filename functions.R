@@ -372,3 +372,10 @@ csv2signature = function(csv_signature_files){
   names(list_signatures) = signature_names
   return(list_signatures)
 }
+
+prep_DEG = function(DEG){
+  logFC = DEG$avg_log2FC
+  names(logFC) = rownames(DEG)
+  logFC = sort(logFC, decreasing = T)
+  return(logFC)
+}
