@@ -318,7 +318,7 @@ plot_full_layout = function(seu, reduction="umap",
                            signatures_to_plot=rownames(seu)[1:4], 
                            metadata_to_plot="orig.ident"){
   ggps_signature = lapply(signatures_to_plot, .FeaturePlot_color, seu)
-  ggp_density = DensityPlot(seu)
+  ggp_density = DensityPlot(seu, reduction = reduction)
   ggps_metadata = lapply(metadata_to_plot, function(metadata, seu){
     if (nrow(unique(seu@meta.data[metadata]))>22){
       return(DimPlot(seu, group.by = metadata))
