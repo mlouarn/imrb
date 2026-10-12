@@ -377,7 +377,7 @@ adata_Fibro.obs.loc[adata_Fibro.obs['leiden_IC2_PC10'].isin(['5']), 'Cell_popula
 adata_Fibro.obs.loc[adata_Fibro.obs['leiden_IC2_PC10'].isin(['6']), 'Cell_population'] = 'Fibro.conta.Epith'
 adata_Fibro.obs.loc[adata_Fibro.obs['leiden_IC2_PC10'].isin(['7']), 'Cell_population'] = 'Fibro.COL1A1'
 adata_Fibro.obs.loc[adata_Fibro.obs['leiden_IC2_PC10'].isin(['8']), 'Cell_population'] = 'Fibro.iCAF-like'
-adata_Fibro.obs.loc[adata_Fibro.obs['leiden_IC2_PC10'].isin(['9']), 'Cell_population'] = 'Fibro.myCAF'
+adata_Fibro.obs.loc[adata_Fibro.obs['leiden_IC2_PC10'].isin(['9']), 'Cell_population'] = 'Fibro.Myofibroblast'
 adata_Fibro.obs.loc[adata_Fibro.obs['leiden_IC2_PC10'].isin(['10']), 'Cell_population'] = 'Fibro.remodeling.CAF'
 adata_Fibro.obs.loc[adata_Fibro.obs['leiden_IC2_PC10'].isin(['11']), 'Cell_population'] = 'Fibro.CAF'
 adata_Fibro.obs.loc[adata_Fibro.obs['leiden_IC2_PC10'].isin(['12']), 'Cell_population'] = 'Fibro.HLA-II'
