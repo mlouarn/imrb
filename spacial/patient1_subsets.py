@@ -223,6 +223,27 @@ uc.compute_ucell_scores(adata_Fibro, signatures=marker_fibro, chunk_size=500)
 list_sign_fibro = ["{}{}".format(i,"_UCell") for i in list(marker_fibro.keys())]
 sc.pl.embedding(adata_Fibro, color=list_sign_fibro,basis='UMAP_IC2_PC10')
 
+#Myeloid other
+adata_Myelo_other = adata_p1[adata_p1.obs['leiden_ICPC'].isin(['13'])].copy()
+adata_Myelo_other.obs['leiden_ICPC_full']=adata_Myelo_other.obs['leiden_ICPC'].copy()
+adata_Myelo_other.obsm['umapICPC_full']=adata_Myelo_other.obsm['umapICPC'].copy()
+adata_Myelo_other.X= adata_Myelo_other.layers["counts"]
+sc.pp.normalize_total(adata_Myelo_other)
+sc.pp.log1p(adata_Myelo_other)
+adata_Myelo_other.layers["lognorm"] = adata_Myelo_other.X.copy()
+sc.pp.highly_variable_genes(adata_Myelo_other, flavor="seurat", n_top_genes=2000)
+sc.pp.scale(adata_Myelo_other, zero_center=False)
+adata_Myelo_other.layers["scaled"] = adata_Myelo_other.X.copy()
+
+sc.pp.pca(adata_Myelo_other, n_comps=50)
+sc.pp.neighbors(adata_Myelo_other, metric="cosine")
+sc.tl.leiden(adata_Myelo_other, flavor="igraph", n_iterations=-1, resolution=1)
+sc.tl.umap(adata_Myelo_other, min_dist=0.1)
+
+adata_Myelo_other.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20260928_Patient1_myeloid_other.h5ad")
+func.to_seqgeq_myelo(adata_Myelo_other,header_sg,"/home/marine-louarn/Documents/Lung_Spatial/Patient1/20260928_Patient1_myeloid_other.txt",adata_Myelo_other.var_names)
+
+
 #Myeloid
 adata_Myelo = adata_p1[adata_p1.obs['leiden_ICPC'].isin(['7'])].copy()
 adata_Myelo.obs['leiden_ICPC_full']=adata_Myelo.obs['leiden_ICPC'].copy()
