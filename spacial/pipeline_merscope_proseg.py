@@ -26,6 +26,10 @@ import squidpy as sq
 import pyucell as uc
 import dask.dataframe as dd
 import anndata
+from shapely import box, Point, STRtree
+import matplotlib.colors as mcolors
+
+
 
 import functions_spatial as func #importlib.reload(func)
 
@@ -241,10 +245,8 @@ with open("/home/marine-louarn/Documents/Lung_Spatial/20261008_Patient1_cellpose
     novae_domains_20_nb_str = [str(x) for x in novae_domains_20_nb]
     f.write("novae_domains_20" + "\t" + "\t".join(novae_domains_20_nb_str) + "\n")
 
-import matplotlib.colors as mcolors
+
 cols = mcolors.ListedColormap([ '#1f77b4ff','#ff7f0eff','#2ca02cff','#d62728ff','#9467bdff','#8c564bff','#e377c2ff','#7f7f7fff'])
-
-
 
 df = adata_p1.obs[['Cell_Type','novae_domains_15_nb']]
 df_new = df.pivot_table(columns="Cell_Type", index="novae_domains_15_nb", aggfunc=len, fill_value=0)
@@ -322,7 +324,7 @@ df=df.T
 sns.heatmap(df,cmap="crest")
 plt.show()
 
-#neighborhood
+#neighborhood squidpy
 sq.gr.spatial_neighbors(adata_p1, coord_type="generic", delaunay=True)
 sq.gr.centrality_scores(adata_p1, cluster_key="leiden_ICPC")
 sq.pl.centrality_scores(adata_p1, cluster_key="leiden_ICPC", figsize=(16, 5))
@@ -376,7 +378,6 @@ plt.show()
 sq.pl.spatial_scatter(adata_tmp, color=["Cell_Population","Tumour_k5"], shape=None, size=2,palette='tab20')
 plt.show()
 
-import matplotlib.colors as mcolors
 cols = mcolors.ListedColormap([ '#1f77b4ff','#ff7f0eff'])
 sq.pl.spatial_scatter(adata_tmp, library_id="spatial",shape=None,color='Tumour_k5',palette=cols)
 cols = mcolors.ListedColormap([ '#1f77b4ff','#ff7f0eff','#2ca02cff','#d62728ff','#9467bdff','#8c564bff','#e377c2ff','#7f7f7fff'])
@@ -407,6 +408,30 @@ adata_T.obs['B_neigh'] = ['Y' if int(i) >1 else 'N' for i in adata_T.obs['B_prox
 marker_B_neigh = sc.tl.rank_genes_groups(adata_T, groupby='B_neigh', key_added='group_DE_results')
 sc.pl.rank_genes_groups_heatmap(adata_T, groupby='B_neigh',key='group_DE_results')
 sc.pl.rank_genes_groups_dotplot(adata_T, groupby='B_neigh',key='group_DE_results')
+
+#neighborhood shapely
+geom_p1 = sdata_p1.shapes['proseg_boundaries']['geometry']
+tree = STRtree(geom_p1)
+
+adata_p1.obs['Neighbour_shapely'] = 'nan'
+adata_p1.obs['Neighbour_shapely'] = adata_p1.obs['Neighbour_shapely'].astype(object)
+for cell in adata_p1.obs['cell_id'].tolist():
+    indices = tree.query(geom_p1[cell],predicate='intersects').tolist()
+    cell_touching = geom_p1.index[indices].tolist()
+    cell_touching.remove(cell)
+    adata_p1.obs.at[cell, 'Neighbour_shapely'] = cell_touching
+
+adata_T = adata_p1[adata_p1.obs['Cell_Type'] == 'T cells'].copy()
+list_B_cell = adata_p1.obs[adata_p1.obs['Cell_Type'] == 'B cells and plasma cells'].index.tolist()
+
+adata_T.obs['Voisin_B']='N'
+for cell in adata_T.obs['cell_id'].tolist():
+    if len(set(adata_T.obs['Neighbour_shapely'][cell]).intersection(list_B_cell)) > 0 :
+        adata_T.obs.at[cell, 'Voisin_B'] = 'Y'
+
+'''p = gpd.GeoSeries(geom_p1[cell_touching]) #if necessary to plot
+p.plot()
+plt.show()'''
 
 '''
 Integration

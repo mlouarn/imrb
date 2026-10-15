@@ -467,7 +467,15 @@ adata_tumor.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/2026
 
 #remap to full object
 
-adata_p1= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/20260918_Patient1_cellposeProseg.h5ad")
+adata_p1= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/20260929_Patient1_cellposeProseg.h5ad")
+
+adata_Myelo= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261008_Patient1_myeloid.h5ad")
+adata_Fibro= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261008_Patient1_fibroblast.h5ad")
+adata_T= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261008_Patient1_T.h5ad")
+adata_endoth= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261008_Patient1_endothelial.h5ad")
+adata_B= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261008_Patient1_Bplasma.h5ad")
+adata_tumor= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261008_Patient1_tumour.h5ad")
+
 adata_p1.obs.loc[adata_p1.obs['leiden_ICPC'].isin(['0']), 'Cell_Population'] = 'epithelial'
 adata_list=[adata_Myelo,adata_Fibro, adata_T, adata_endoth,adata_B,adata_tumor]
 for adata in adata_list:
@@ -480,4 +488,4 @@ for adata in adata_list:
         adata_p1.obs.loc[adata_p1.obs['cell_id'].isin(adata.obs['cell_id']), 'Subset_umap_ICPC_1'] = adata.obsm['UMAP_IC2_PC10'][:,0]
         adata_p1.obs.loc[adata_p1.obs['cell_id'].isin(adata.obs['cell_id']), 'Subset_umap_ICPC_2'] = adata.obsm['UMAP_IC2_PC10'][:,1]
 
-adata_p1.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261008_Patient1_withAllSubtypes.h5ad")
+adata_p1.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261015_Patient1_withAllSubtypes.h5ad")

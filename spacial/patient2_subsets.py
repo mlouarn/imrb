@@ -19,7 +19,7 @@ import functions_spatial as func
 
 adata_p2= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/20260922_Patient2_cellposeProseg.h5ad")
 header_sg="/home/marine-louarn/Documents/Header_SeqGeq.txt"
-signature_v2 = pd.read_csv("/home/marine-louarn/ref/20261013_JDD_BreastK_DC1update.csv")
+signature_v2 = pd.read_csv("/home/marine-louarn/ref/20260928_JDD_BreastK_DC1update.csv")
 top=2
 max_pc=10
 
