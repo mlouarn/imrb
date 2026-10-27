@@ -141,7 +141,7 @@ def to_seqgeq_myelo(adata, header_sg="/home/marine-louarn/Documents/Header_SeqGe
         f.write("umap_ICPC2" + "\t" + "\t".join(umap_icpc_y_str)+"\n")
         f.write("Spatial_X" + "\t" + "\t".join(spatial_x_str)+"\n")
         f.write("Spatial_Y" + "\t" + "\t".join(spatial_y_str)+"\n")
-        f.write("leiden_clusters_PC" + "\t" + "\t".join(adata.obs['leiden']) + "\n")
+        f.write("leiden_subtype_PC" + "\t" + "\t".join(adata.obs['leiden']) + "\n")
         f.write("leiden_clusters_ICPC" + "\t" + "\t".join(adata.obs['leiden_ICPC_full']) + "\n")
         f.write("nCount" + "\t" + "\t".join(n_counts_str) + "\n")
 

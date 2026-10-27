@@ -67,7 +67,7 @@ points_fixed.attrs.update(attrs)
 sdata_p2.points[points_key] = points_fixed
 
 sopa.io.explorer.write('/home/marine-louarn/Documents/Lung_Spatial/Patient2_proseg', sdata_p2)
-#sopa.io.explorer.write_cell_categories('/home/marine-louarn/Documents/Xenium_Calderaro/Xenium_explorer_s1', adata_s1)
+sopa.io.explorer.write_cell_categories('/home/marine-louarn/Documents/Lung_Spatial/Patient1_proseg', adata_s1)
 #sd.sanitize_table(adata)
 
 """Transcript
@@ -367,7 +367,7 @@ adata_p1.obs['Tumour_proximity']=neighbor_counts
 adata_tmp = adata_p1[adata_p1.obs['Cell_Type'] == 'Myeloid'].copy()
 adata_tmp.obs['Tumour_k5'] = ['Y' if int(i) >4 else 'N' for i in adata_tmp.obs['Tumour_proximity']]
 
-df=adata_tmp.obs[['Cell_Population','Tumour_k5']]
+df=adata_T.obs[['Cell_Population','Tumour_k5']]
 df_new = df.pivot_table(columns="Cell_Population", index="Tumour_k5", aggfunc=len, fill_value=0)
 ax = df_new.plot.bar(stacked=True,cmap='tab20')
 ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
@@ -404,12 +404,13 @@ plt.show()
 adata_p1.obs['B_proximity']=neighbor_counts
 
 adata_T = adata_p1[adata_p1.obs['leiden_ICPC'].isin(['8','12'])].copy()
-adata_T.obs['B_neigh'] = ['Y' if int(i) >1 else 'N' for i in adata_T.obs['B_proximity']]
+adata_T.obs['B_neigh'] = ['Y' if int(i) >0 else 'N' for i in adata_T.obs['B_proximity']]
 marker_B_neigh = sc.tl.rank_genes_groups(adata_T, groupby='B_neigh', key_added='group_DE_results')
 sc.pl.rank_genes_groups_heatmap(adata_T, groupby='B_neigh',key='group_DE_results')
 sc.pl.rank_genes_groups_dotplot(adata_T, groupby='B_neigh',key='group_DE_results')
 
 #neighborhood shapely
+#sdata_p1 = sd.read_zarr("/home/marine-louarn/Documents/Lung_Spatial/Patient1_proseg.zarr") 
 geom_p1 = sdata_p1.shapes['proseg_boundaries']['geometry']
 tree = STRtree(geom_p1)
 
@@ -421,17 +422,56 @@ for cell in adata_p1.obs['cell_id'].tolist():
     cell_touching.remove(cell)
     adata_p1.obs.at[cell, 'Neighbour_shapely'] = cell_touching
 
-adata_T = adata_p1[adata_p1.obs['Cell_Type'] == 'T cells'].copy()
-list_B_cell = adata_p1.obs[adata_p1.obs['Cell_Type'] == 'B cells and plasma cells'].index.tolist()
+adata_T = adata_p1[adata_p1.obs['Cell_Population'].isin(['Treg.CCR8','T_stroma','T.EGR1','T.CD8','T.CCL1','T.prolif','T.IL22','T.helper','T.unassigned'])].copy()
+list_plasma_cell = adata_p1.obs[adata_p1.obs['Cell_Population'].isin(['Plasma','B_Plasma','Plasma.CXCL10'])].index.tolist()
 
-adata_T.obs['Voisin_B']='N'
+adata_T.obs['Voisin_Plasma']='0'
+adata_T.obs['Voisin_Plasma_YN']='N'
 for cell in adata_T.obs['cell_id'].tolist():
-    if len(set(adata_T.obs['Neighbour_shapely'][cell]).intersection(list_B_cell)) > 0 :
-        adata_T.obs.at[cell, 'Voisin_B'] = 'Y'
+    val = len(set(adata_T.obs['Neighbour_shapely'][cell]).intersection(list_plasma_cell))
+    if val == 0:
+        adata_T.obs.at[cell, 'Voisin_Plasma'] = str(val)
+        adata_T.obs.at[cell, 'Voisin_Plasma_YN']='N'
+    elif 0 < val < 4 :
+        adata_T.obs.at[cell, 'Voisin_Plasma'] = str(val)
+        adata_T.obs.at[cell, 'Voisin_Plasma_YN']='Y'
+    else :
+        adata_T.obs.at[cell, 'Voisin_Plasma'] = '4+'
+        adata_T.obs.at[cell, 'Voisin_Plasma_YN']='Y'
 
+ 
 '''p = gpd.GeoSeries(geom_p1[cell_touching]) #if necessary to plot
-p.plot()
+p.plot() #.boundary.plot()
 plt.show()'''
+
+df=adata_T.obs[['Cell_Population','Voisin_Plasma']]
+df_new = df.pivot_table(columns="Cell_Population", index="Voisin_Plasma", aggfunc=len, fill_value=0)
+ax = df_new.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+plt.show()
+
+df_percent = df.pivot_table(columns="Cell_Population", index="Voisin_Plasma", aggfunc=len, fill_value=0).apply(lambda x: x/sum(x), axis=1)
+ax_percent = df_percent.plot.bar(stacked=True,cmap='tab20')
+ax_percent.set_xticklabels(ax_percent.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+plt.show()
+
+
+sc.tl.rank_genes_groups(adata_T, groupby='Voisin_Plasma_YN', key_added='group_DE_results')
+marker_B_neigh = sc.get.rank_genes_groups_df(adata_T,group=None,key='group_DE_results')
+marker_B_neigh.to_csv('/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261016_marker_TvoisinPlasma.csv')
+sc.pl.rank_genes_groups_heatmap(adata_T, groupby='Voisin_Plasma_YN',key='group_DE_results')
+
+#CD8 T
+adata_CD8 = adata_T[adata_T.obs['Cell_Population'].isin(['T.CD8'])].copy()
+sc.tl.rank_genes_groups(adata_CD8, groupby='Voisin_Plasma_YN', key_added='group_DE_results')
+marker_B_neigh = sc.get.rank_genes_groups_df(adata_CD8,group=None,key='group_DE_results')
+marker_B_neigh.to_csv('/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261016_marker_CD8voisinPlasma.csv')
+sc.pl.rank_genes_groups_heatmap(adata_CD8, groupby='Voisin_Plasma_YN',key='group_DE_results')
+
 
 '''
 Integration

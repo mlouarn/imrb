@@ -45,11 +45,11 @@ adata_p2.obs.loc[adata_p2.obs['leiden_ICPC'].isin(['26','20','14','8','6']), 'Ce
 adata_p2.obs.loc[adata_p2.obs['leiden_ICPC'].isin(['1','36']), 'Cell_Type'] = 'Myeloid'
 adata_p2.obs.loc[adata_p2.obs['leiden_ICPC'].isin(['2']), 'Cell_Type'] = 'B cells'
 adata_p2.obs.loc[adata_p2.obs['leiden_ICPC'].isin(['3']), 'Cell_Type'] = 'Plasma cells'
-pDC= list(pd.read_csv("Lung_Merscope_P2_leiden_ICPC_19_U_pDC.csv", skiprows=5).columns)
+pDC= list(pd.read_csv("Patient2/Lung_Merscope_P2_leiden_ICPC_19_U_pDC.csv", skiprows=5).columns)
 adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(pDC), 'Cell_Type'] = 'pDC'
 adata_p2.obs.loc[adata_p2.obs['leiden_ICPC'].isin(['0']), 'Cell_Type'] = 'Mast Cells'
 adata_p2.obs.loc[adata_p2.obs['leiden_ICPC'].isin(['35','28','10']), 'Cell_Type'] = 'unsure'
-adata_p2.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/20260922_Patient2_cellposeProseg.h5ad")
+adata_p2.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20260922_Patient2_cellposeProseg.h5ad")
 
 sc.pl.embedding(adata_p2, color="Cell_Type",basis='umapICPC')
 
@@ -271,7 +271,7 @@ uc.compute_ucell_scores(adata_Fibro, signatures=marker_fibro, chunk_size=500)
 list_sign_fibro = ["{}{}".format(i,"_UCell") for i in list(marker_fibro.keys())]
 sc.pl.embedding(adata_Fibro, color=list_sign_fibro,basis='UMAP_IC2_PC10')
 
-#Myeloid
+#Myeloid All
 adata_Myelo = adata_p2[adata_p2.obs['leiden_ICPC'].isin(['1','19','36'])].copy()
 adata_Myelo.obs['leiden_ICPC_full']=adata_Myelo.obs['leiden_ICPC'].copy()
 adata_Myelo.obsm['umapICPC_full']=adata_Myelo.obsm['umapICPC'].copy()
@@ -300,8 +300,8 @@ for top in range(2,6):
         sc.tl.leiden(adata_Myelo, flavor="igraph", n_iterations=-1, resolution=1.5,neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc),key_added="leiden_IC"+str(top)+"_PC"+str(max_pc))
         sc.tl.umap(adata_Myelo,key_added = "UMAP_IC"+str(top)+"_PC"+str(max_pc),neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc), min_dist=0.1)
 
-adata_Myelo.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_myeloid_DC1update.h5ad")
-func.to_seqgeq_myelo(adata_Myelo,header_sg,"/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_myeloid_DC1update.txt",adata_Myelo.var_names)
+adata_Myelo.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_myeloid.h5ad")
+func.to_seqgeq_myelo(adata_Myelo,header_sg,"/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_myeloid.txt",adata_Myelo.var_names)
 
 filtered_signature = signature_v2[signature_v2['Family']=='Myeloid']
 filtered_signature = filtered_signature[filtered_signature['gene'].isin(adata_p2.var_names.tolist())]
@@ -317,16 +317,107 @@ list_sign_myelo = ["{}{}".format(i,"_UCell") for i in list(marker_myelo.keys())]
 #sc.pl.embedding(adata_Myelo, color=list_sign_myelo,basis='spatial')
 sc.pl.embedding(adata_Myelo, color=list_sign_myelo,basis='UMAP_IC2_PC10')
 
+#Myeloid selected
+mnp10= list(pd.read_csv("Patient2/Annotation_Leiden_Clusters_Mono.Mac_Merzcope_Lung_Patient2/Extraire et rerun UMAP leiden/A_REANALYSERindépendemment_Subset_leiden_MNP_#10_MoMac.mix.IL4I1.TREM2.csv", skiprows=5).columns)
+mnp7= list(pd.read_csv("Patient2/Annotation_Leiden_Clusters_Mono.Mac_Merzcope_Lung_Patient2/Extraire et rerun UMAP leiden/export_Subset_leiden_MNP_#7_MoMac.C1QC.LYZ.csv", skiprows=5).columns)
+mnp1= list(pd.read_csv("Patient2/Annotation_Leiden_Clusters_Mono.Mac_Merzcope_Lung_Patient2/Extraire et rerun UMAP leiden/Subset_leiden_MNP_#1_DC2.3.csv", skiprows=5).columns)
+mnp2= list(pd.read_csv("Patient2/Annotation_Leiden_Clusters_Mono.Mac_Merzcope_Lung_Patient2/Extraire et rerun UMAP leiden/Subset_leiden_MNP_#2_Mac.FOLR2.csv", skiprows=5).columns)
+mnp8= list(pd.read_csv("Patient2/Annotation_Leiden_Clusters_Mono.Mac_Merzcope_Lung_Patient2/Extraire et rerun UMAP leiden/Subset_leiden_MNP_#8_Mac.SPP1.csv", skiprows=5).columns)
+mnp12= list(pd.read_csv("Patient2/Annotation_Leiden_Clusters_Mono.Mac_Merzcope_Lung_Patient2/Extraire et rerun UMAP leiden/Subset_leiden_MNP_#12_Mac.IFNB1.csv", skiprows=5).columns)
+
+adata_mnp = adata_p2[adata_p2.obs['cell_id'].isin(mnp10+mnp7+mnp1+mnp2+mnp8+mnp12)]
+adata_mnp.obs['leiden_ICPC_full']=adata_mnp.obs['leiden_ICPC'].copy()
+adata_mnp.obsm['umapICPC_full']=adata_mnp.obsm['umapICPC'].copy()
+adata_mnp.X= adata_mnp.layers["counts"]
+sc.pp.normalize_total(adata_mnp)
+sc.pp.log1p(adata_mnp)
+adata_mnp.layers["lognorm"] = adata_mnp.X.copy()
+sc.pp.highly_variable_genes(adata_mnp, flavor="seurat", n_top_genes=2000)
+sc.pp.scale(adata_mnp, zero_center=False)
+adata_mnp.layers["scaled"] = adata_mnp.X.copy()
+
+sc.pp.pca(adata_mnp, n_comps=50)
+sc.pp.neighbors(adata_mnp, metric="cosine")
+sc.tl.leiden(adata_mnp, flavor="igraph", n_iterations=-1, resolution=1)
+sc.tl.umap(adata_mnp, min_dist=0.1)
+
+func.ica(adata_mnp,n_components=50)
+ics = pd.DataFrame(adata_mnp.varm['ICs'])
+ics.index = adata_mnp.var.index
+for top in range(2,6):
+    ic_tokeeps = func.ic_tokeep(adata_mnp,ics, signature_v2[signature_v2['Family']=='Myeloid'],"Cell_Subset",topX=top)
+    for max_pc in range(10,60,10):
+        adata_mnp.obsm["X_ic_pca" ] = np.concatenate((adata_mnp.obsm["X_ica" ][:,ic_tokeeps], adata_mnp.obsm["X_pca" ][:,list(range(0,max_pc))]),axis=1)
+        adata_mnp.varm["IC_PCs"] = np.concatenate((adata_mnp.varm["ICs"][:,ic_tokeeps], adata_mnp.varm["PCs" ][:,list(range(0,max_pc))]),axis=1)
+        sc.pp.neighbors(adata_mnp, metric="cosine",use_rep="X_ic_pca",key_added="neigh_IC"+str(top)+"_PC"+str(max_pc))
+        sc.tl.leiden(adata_mnp, flavor="igraph", n_iterations=-1, resolution=1.5,neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc),key_added="leiden_IC"+str(top)+"_PC"+str(max_pc))
+        sc.tl.umap(adata_mnp,key_added = "UMAP_IC"+str(top)+"_PC"+str(max_pc),neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc), min_dist=0.1)
+
+adata_mnp.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261022_Patient2_myeloid_extractedCells.h5ad")
+func.to_seqgeq_myelo(adata_mnp,header_sg,"/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261022_Patient2_myeloid_extractedCells.txt",adata_mnp.var_names)
+
+#T CD8
+cd8_3= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_3.csv", skiprows=5).columns)
+cd8_10= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_10.csv", skiprows=5).columns)
+cd8_11= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_11.csv", skiprows=5).columns)
+cd8_13= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_13.csv", skiprows=5).columns)
+cd8_14= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_14.csv", skiprows=5).columns)
+cd8_15= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_15.csv", skiprows=5).columns)
+
+adata_CD8 = adata_T[adata_T.obs['cell_id'].isin(cd8_3+cd8_10+cd8_11+cd8_13+cd8_14+cd8_15)]
+adata_CD8.obs['leiden_T']=adata_CD8.obs['leiden'].copy()
+adata_CD8.obsm['umapPC_T']=adata_CD8.obsm['X_umap'].copy()
+adata_CD8.X= adata_CD8.layers["counts"]
+sc.pp.normalize_total(adata_CD8)
+sc.pp.log1p(adata_CD8)
+adata_CD8.layers["lognorm"] = adata_CD8.X.copy()
+sc.pp.highly_variable_genes(adata_CD8, flavor="seurat", n_top_genes=2000)
+sc.pp.scale(adata_CD8, zero_center=False)
+adata_CD8.layers["scaled"] = adata_CD8.X.copy()
+
+sc.pp.pca(adata_CD8, n_comps=50)
+sc.pp.neighbors(adata_CD8, metric="cosine")
+sc.tl.leiden(adata_CD8, flavor="igraph", n_iterations=-1, resolution=1)
+sc.tl.umap(adata_CD8, min_dist=0.1)
+
+func.ica(adata_CD8,n_components=50)
+ics = pd.DataFrame(adata_CD8.varm['ICs'])
+ics.index = adata_CD8.var.index
+for top in range(2,6):
+    ic_tokeeps = func.ic_tokeep(adata_CD8,ics, signature_v2[signature_v2['Family']=='Myeloid'],"Cell_Subset",topX=top)
+    for max_pc in range(10,60,10):
+        adata_CD8.obsm["X_ic_pca" ] = np.concatenate((adata_CD8.obsm["X_ica" ][:,ic_tokeeps], adata_CD8.obsm["X_pca" ][:,list(range(0,max_pc))]),axis=1)
+        adata_CD8.varm["IC_PCs"] = np.concatenate((adata_CD8.varm["ICs"][:,ic_tokeeps], adata_CD8.varm["PCs" ][:,list(range(0,max_pc))]),axis=1)
+        sc.pp.neighbors(adata_CD8, metric="cosine",use_rep="X_ic_pca",key_added="neigh_IC"+str(top)+"_PC"+str(max_pc))
+        sc.tl.leiden(adata_CD8, flavor="igraph", n_iterations=-1, resolution=1.5,neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc),key_added="leiden_IC"+str(top)+"_PC"+str(max_pc))
+        sc.tl.umap(adata_CD8,key_added = "UMAP_IC"+str(top)+"_PC"+str(max_pc),neighbors_key="neigh_IC"+str(top)+"_PC"+str(max_pc), min_dist=0.1)
+
+adata_CD8.write_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261026_Patient2_CD8.h5ad")
+func.to_seqgeq_myelo(adata_CD8,header_sg,"/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261026_Patient2_CD8.txt",adata_CD8.var_names)
+
+with open('/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261026_Patient2_CD8.txt', "a") as f:
+    f.write("leiden_T" + "\t" + "\t".join(adata_CD8.obs['leiden_T']) + "\n")
+    f.write("umapPC_T_1" + "\t" + "\t".join(adata_CD8.obsm['umapPC_T'][:,0].astype(str)) + "\n")
+    f.write("umapPC_T_2" + "\t" + "\t".join(adata_CD8.obsm['umapPC_T'][:,1].astype(str)) + "\n")
+
+with open('/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261026_Patient2_CD8.txt', "a") as f:
+    f.write("Voisin_Plasma" + "\t" + "\t".join(adata_CD8.obs['Voisin_Plasma']) + "\n")
+    f.write("Voisin_B" + "\t" + "\t".join(adata_CD8.obs['Voisin_B']) + "\n")
+    f.write("Voisin_B_and_Plasma" + "\t" + "\t".join(adata_CD8.obs['Voisin_B_and_Plasma']) + "\n")
+    f.write("Voisin_0.None_1.B_2.Plasma_3.both" + "\t" + "\t".join(adata_CD8.obs['Voisin_nb']) + "\n")
+
 #readall + Markers
 adata_Myelo= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_myeloid.h5ad")
 adata_Fibro= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_fibroblast.h5ad")
 adata_T= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_T.h5ad")
 adata_endoth= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_endothelial.h5ad")
-adata_B= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_Bplasma.h5ad")
+adata_B= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_B.h5ad")
 adata_tumor= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_tumour.h5ad")
+adata_unsure= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_unsure.h5ad")
+adata_plasma= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_plasma.h5ad")
 
-adata=[adata_Myelo,adata_Fibro, adata_T, adata_endoth,adata_B, adata_tumor]
-name=['Myelo','Fibro', 'T', 'endoth','B','Tumour']
+adata=[adata_Myelo,adata_Fibro, adata_T, adata_endoth,adata_B, adata_tumor,adata_unsure,adata_plasma]
+name=['Myelo','Fibro', 'T', 'endoth','B','Tumour','Unsure','Plasma']
 for i in range(0,len(adata)):
     sc.tl.rank_genes_groups(adata[i], 'leiden', method='wilcoxon', key_added = "wilcoxon")
     markers = sc.get.rank_genes_groups_df(adata[i],group=None,key='wilcoxon')
@@ -342,3 +433,38 @@ for i in range(0,len(adata)):
     sc.pl.rank_genes_groups_heatmap(adata[i], n_genes=5, key="wilcoxon", groupby="leiden_IC2_PC10", show_gene_labels=True)
     sc.pl.rank_genes_groups_dotplot(adata[i],n_genes=5, key="wilcoxon", groupby="leiden_IC2_PC10")
     markers.to_csv('/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261007_marker_'+name[i]+'_IC2_PC10.csv')
+
+#Cell pop
+cd8_3= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_3.csv", skiprows=5).columns)
+cd8_10= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_10.csv", skiprows=5).columns)
+cd8_11= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_11.csv", skiprows=5).columns)
+cd8_13= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_13.csv", skiprows=5).columns)
+cd8_14= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_14.csv", skiprows=5).columns)
+cd8_15= list(pd.read_csv("Patient2/CD8/U_CD8A+_leiden_clusters_PC_15.csv", skiprows=5).columns)
+
+adata_p2.obs['Cell_Population'] = 'unknown'
+adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(cd8_3+cd8_10+cd8_11+cd8_13+cd8_14+cd8_15), 'Cell_Population'] = 'T.CD8'
+
+
+
+#remap to full object
+adata_Myelo= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_myeloid.h5ad")
+adata_Fibro= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_fibroblast.h5ad")
+adata_T= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_T.h5ad")
+adata_endoth= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_endothelial.h5ad")
+adata_B= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_B.h5ad")
+adata_tumor= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_tumour.h5ad")
+adata_unsure= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_unsure.h5ad")
+adata_plasma= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261013_Patient2_plasma.h5ad")
+
+
+adata_list=[adata_Myelo,adata_Fibro, adata_T, adata_endoth,adata_B,adata_tumor,adata_unsure,adata_plasma]
+for adata in adata_list:
+    #adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(adata.obs['cell_id']), 'Cell_Population'] = adata.obs['Cell_population'].astype(str)
+    adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(adata.obs['cell_id']), 'Subset_leiden'] = adata.obs['leiden'].astype(str)
+    adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(adata.obs['cell_id']), 'Subset_umap_1'] = adata.obsm['X_umap'][:,0]
+    adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(adata.obs['cell_id']), 'Subset_umap_2'] = adata.obsm['X_umap'][:,1]
+    if 'leiden_IC2_PC10' in adata.obs.columns :
+        adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(adata.obs['cell_id']), 'Subset_leiden_IC_PC'] = adata.obs['leiden_IC2_PC10'].astype(str)
+        adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(adata.obs['cell_id']), 'Subset_umap_ICPC_1'] = adata.obsm['UMAP_IC2_PC10'][:,0]
+        adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(adata.obs['cell_id']), 'Subset_umap_ICPC_2'] = adata.obsm['UMAP_IC2_PC10'][:,1]
