@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns 
 import squidpy as sq
+import pandas as pd
 
 '''
 get c_id of neighbour
@@ -25,7 +26,7 @@ for cell in adata_patient1.obs['cell_id'].tolist():
     adata_patient1.obs.at[cell, 'Neighbour_shapely'] = cell_touching
 
 sdata_p2 = sd.read_zarr("/home/marine-louarn/Documents/Lung_Spatial/Patient2_proseg.zarr") 
-adata_p2 = sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20260922_Patient2_cellposeProseg.h5ad")
+adata_p2 = sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261103_Patient2_withAllSubtypes.h5ad")
 
 geom_p2 = sdata_p2.shapes['proseg_boundaries']['geometry']
 tree_p2 = STRtree(geom_p2)
@@ -155,10 +156,11 @@ with open('/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261021_ALL_neig
 '''
 Keeping all cells at X of T in contact of plasma
 '''
-x = 2
+x = 10
 #p1
 sq.gr.spatial_neighbors_radius(adata_patient1, radius=x)
-sq.tl.var_by_distance(adata_patient1,cluster_key="Voisin_Plasma_YN",groups="Y",spatial_key="spatial")
+adata_patient1.obs['CD8_next_Plasma'] = np.where(adata_patient1.obs['Cell_Population'] == 'T.CD8', adata_patient1.obs['Voisin_Plasma_YN'], 'N')
+sq.tl.var_by_distance(adata_patient1,cluster_key="CD8_next_Plasma",groups="Y",spatial_key="spatial")
 distances = adata_patient1.obsm["design_matrix"]["Y_raw"]
 adata_subset_p1 = adata_patient1[distances <= x].copy()
 
@@ -176,8 +178,14 @@ plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", fram
 plt.show()
 
 #p2
+cxcl12= list(pd.read_csv("Patient2/leiden_clusters_Fibro_CXCL12+.csv", skiprows=5).columns)
+adata_p2.obs['Cell_Subset'] = adata_p2.obs['Cell_Subset'].astype('str')
+adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(cxcl12), 'Cell_Subset'] = 'Fibroblasts.CXCL12'
+
 sq.gr.spatial_neighbors_radius(adata_p2, radius=x)
-sq.tl.var_by_distance(adata_p2,cluster_key="Voisin_Plasma_YN",groups="Y",spatial_key="spatial")
+adata_p2.obs['CD8_next_Plasma'] = np.where(adata_p2.obs['Cell_Population'] == 'T.CD8', adata_p2.obs['Voisin_Plasma_YN'], 'N')
+sq.tl.var_by_distance(adata_p2,cluster_key="CD8_next_Plasma",groups="Y",spatial_key="spatial")
+#sq.tl.var_by_distance(adata_p2,cluster_key="Voisin_Plasma_YN",groups="Y",spatial_key="spatial")
 distances = adata_p2.obsm["design_matrix"]["Y_raw"]
 adata_subset = adata_p2[distances <= x].copy()
 
@@ -186,48 +194,72 @@ sc.pl.embedding(adata_subset, color="Cell_Type",basis='spatial')
 adata_p2.obs['Domain_Tplasma'] = 'N'
 adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(adata_subset.obs['cell_id']), 'Domain_Tplasma'] = 'Y'
 
-df=adata_p2.obs[['Cell_Subset','Domain_Tplasma']]
-df_new = df.pivot_table(columns="Cell_Subset", index="Domain_Tplasma", aggfunc=len, fill_value=0)
-ax = df_new.plot.bar(stacked=True,cmap='gist_rainbow')
+df=adata_p2.obs[['Cell_Type','Domain_Tplasma']]
+df_new = df.pivot_table(columns="Cell_Type", index="Domain_Tplasma", aggfunc=len, fill_value=0)
+ax = df_new.plot.bar(stacked=True,cmap='tab20')
 ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
 plt.style.use('ggplot')
 plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
 plt.show()
-df_per = df.pivot_table(columns="Cell_Subset", index="Domain_Tplasma", aggfunc=len, fill_value=0).apply(lambda x: x/sum(x), axis=1)
-ax = df_per.plot.bar(stacked=True,cmap='gist_rainbow')
+df_per = df.pivot_table(columns="Cell_Type", index="Domain_Tplasma", aggfunc=len, fill_value=0).apply(lambda x: x/sum(x), axis=1)
+ax = df_per.plot.bar(stacked=True,cmap='tab20')
 ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
 plt.style.use('ggplot')
 plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
 plt.show()
 
+df_pop=adata_p2.obs[['Cell_Subset','Domain_Tplasma']]
+df_pop_new = df_pop.pivot_table(columns="Cell_Subset", index="Domain_Tplasma", aggfunc=len, fill_value=0)
 
-filter_col = [col for col in df_new if col.startswith('Fibroblasts')]
-df_fibro = df_new[filter_col]
-ax = df_fibro.plot.bar(stacked=True,cmap='tab20b')
+for i in adata_p2.obs['Cell_Type'].unique():
+    filter_col = [col for col in df_pop_new if col.startswith(i)]
+    df_fibro = df_pop_new[filter_col]
+    df_per_fibro = df_fibro.apply(lambda x: x/sum(x), axis=1)
+    ax = df_per_fibro.plot.bar(stacked=True,cmap='gist_rainbow')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    plt.style.use('ggplot')
+    plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+    plt.savefig('Patient2/Cell_subset_'+i+'_percent_at_10_CD8nextPlasma_p2.png', bbox_inches='tight')
+    df_per_fibro_T = df_per_fibro.T
+    df_per_fibro_T['fold']=df_per_fibro_T['Y']/df_per_fibro_T['N']
+
+
+df_dist= adata_p2.obs[['Cell_Type','Cell_Subset']]
+df_dist= df_dist.join(adata_p2.obsm["design_matrix"]["Y_raw"].to_frame())
+df_dist['Distance'] = pd.cut(df_dist.Y_raw, [-1,1,10,20,30,40,50,60,70,80,90,100])
+df_used = df_dist[['Cell_Type','Distance']]
+df_dist_new = df_used.pivot_table(columns="Cell_Type", index="Distance", aggfunc=len, fill_value=0)
+ax = df_dist_new.plot.bar(stacked=True,cmap='tab20')
 ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
 plt.style.use('ggplot')
 plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
-plt.show()
+plt.savefig('Patient2/AllCells_at_X_CD8nextPlasma_Barplot_p2.png', bbox_inches='tight')
+for i in adata_p2.obs['Cell_Type'].unique():
+    df_used = df_dist[['Cell_Subset','Distance']]
+    df_dist_new = df_used.pivot_table(columns="Cell_Subset", index="Distance", aggfunc=len, fill_value=0)
+    filter_col = [col for col in df_dist_new if col.startswith(i)]
+    df_fibro = df_dist_new[filter_col]
+    ax = df_fibro.plot.bar(stacked=True,cmap='gist_rainbow')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    plt.style.use('ggplot')
+    plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+    plt.savefig('Patient2/Cell_subset_'+i+'_distance_to_CD8nextPlasma_p2.png', bbox_inches='tight')
+    df_fibro_norm = df_dist_new[filter_col].apply(lambda x: x/sum(x), axis=1)
+    ax = df_fibro_norm.plot.bar(stacked=True,cmap='gist_rainbow')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    plt.style.use('ggplot')
+    plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+    plt.savefig('Patient2/Cell_subset_'+i+'_norm_distance_to_CD8nextPlasma_p2.png', bbox_inches='tight')
 
-df_per_fibro = df_fibro.apply(lambda x: x/sum(x), axis=1)
-ax = df_per_fibro.plot.bar(stacked=True,cmap='gist_rainbow')
-ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
-plt.style.use('ggplot')
-plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
-plt.show()
 
-df_per_fibro_T = df_per_fibro.T
-df_per_fibro_T['fold']=df_per_fibro_T['Y']/df_per_fibro_T['N']
+with open('/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261103_Patient2_Bneighbour_withdistPairs_TB.txt', "a") as f:
+     f.write("Distance_to_pair_TPlasma" + "\t" + "\t".join(adata_p2.obsm["design_matrix"]["Y_raw"].astype(str)) + "\n")
 
-cxcl12= list(pd.read_csv("Patient2/leiden_clusters_Fibro_CXCL12+.csv", skiprows=5).columns)
-
-adata_p2.obs['Cell_Subset'] = adata_p2.obs['Cell_Subset'].astype('str')
-adata_p2.obs.loc[adata_p2.obs['cell_id'].isin(cxcl12), 'Cell_Subset'] = 'Fibroblasts.CXCL12'
 
 '''
 FOLR2 environment
 '''
-
+#voisin direct
 adata_p1_folr2 = adata_patient1[adata_patient1.obs['Cell_Population']=='Mac.FOLR2'].copy()
 
 p1_folrd_df = pd.DataFrame(index = adata_p1_folr2.obs['cell_id'].tolist(),columns =adata_patient1.obs['Cell_Type'].cat.categories.tolist())
@@ -239,9 +271,177 @@ for cell in adata_p1_folr2.obs['cell_id'].tolist():
     for i in voisins :
         if i in adata_patient1.obs['cell_id'].tolist() :
             ct = adata_patient1.obs['Cell_Type'][i]
-            p1_folrd_df[ct].loc[cell]
+            #p1_folrd_df[ct].loc[cell]
             p1_folrd_df.loc[cell, ct] = p1_folrd_df[ct].loc[cell]+1
 
 
 sns.clustermap(p1_folrd_df)
+plt.savefig('Alexandre_Paper_FOLR2/Patient1_neighbour_FOLR2_heatmap.png', bbox_inches='tight')
+plt.close('all')
+sns.violinplot(data=p1_folrd_df)
+plt.savefig('Alexandre_Paper_FOLR2/Patient1_neighbour_FOLR2_violin.png', bbox_inches='tight')
+plt.close('all')
+
+#voisin +radius
+geom_p1 = sdata_p1.shapes['proseg_boundaries']['geometry']
+tree_p1 = STRtree(geom_p1)
+adata_patient1.obs['Neighbour_10'] = 'nan'
+adata_patient1.obs['Neighbour_10'] = adata_patient1.obs['Neighbour_10'].astype(object)
+for cell in adata_patient1.obs['cell_id'].tolist():
+    indices = tree_p1.query(geom_p1[cell],predicate='dwithin',distance=100).tolist()
+    cell_touching = geom_p1.index[indices].tolist()
+    cell_touching.remove(cell)
+    adata_patient1.obs.at[cell, 'Neighbour_10'] = cell_touching
+
+adata_p1_folr2 = adata_patient1[adata_patient1.obs['Cell_Population']=='Mac.FOLR2'].copy()
+p1_folr2_df = pd.DataFrame(index = adata_p1_folr2.obs['cell_id'].tolist(),columns =adata_patient1.obs['Cell_Type'].cat.categories.tolist())
+p1_folr2_df = p1_folr2_df.replace(np.NaN, 0)
+
+for cell in adata_p1_folr2.obs['cell_id'].tolist():
+    voisins = adata_p1_folr2.obs['Neighbour_10'][cell]
+    for i in voisins :
+        if i in adata_patient1.obs['cell_id'].tolist() :
+            ct = adata_patient1.obs['Cell_Type'][i]
+            p1_folr2_df.loc[cell, ct] = p1_folr2_df[ct].loc[cell]+1
+
+sns.clustermap(p1_folr2_df)
+plt.savefig('Alexandre_Paper_FOLR2/Patient1_neighbour_100_FOLR2_heatmap.png')
+plt.close('all')
+sns.violinplot(p1_folr2_df)
+plt.savefig('Alexandre_Paper_FOLR2/Patient1_neighbour_100_FOLR2_violin.png', bbox_inches='tight')
+plt.close('all')
+
+#flat_list = [ x for xs in adata_p1_folr2.obs['Neighbour_10'] for x in xs]
+#sc.pl.embedding(adata_patient1[adata_patient1.obs['cell_id'].isin(flat_list)], color="Cell_Type",basis='spatial')
+
+adata_p1_folr2 = adata_patient1[adata_patient1.obs['Cell_Population']=='Mac.FOLR2'].copy()
+#idem but radius
+sq.gr.spatial_neighbors_radius(adata_patient1, radius=10)
+adj_matrix = adata_patient1.obsp["spatial_connectivities"]
+
+p1_folr2_10_df = pd.DataFrame(index = adata_p1_folr2.obs['cell_id'].tolist(),columns =adata_patient1.obs['Cell_Type'].cat.categories.tolist())
+p1_folr2_10_df = p1_folr2_10_df.replace(np.NaN, 0)
+for cell in adata_p1_folr2.obs['cell_id'].tolist():
+    target_indices = np.where(adata_patient1.obs['cell_id'] == cell)[0]
+    neighbor_counts = np.array(adj_matrix[:, target_indices].sum(axis=1))
+    voisins = adata_patient1[neighbor_counts > 0].obs['cell_id'].tolist()
+    for i in voisins :
+        if i in adata_patient1.obs['cell_id'].tolist() :
+            ct = adata_patient1.obs['Cell_Type'][i]
+            p1_folr2_10_df.loc[cell, ct] = p1_folr2_10_df[ct].loc[cell]+1
+
+sns.clustermap(p1_folr2_10_df)
 plt.show()
+
+p = gpd.GeoSeries(geom_p1[voisins]) #if necessary to plot
+p.plot() #.boundary.plot()
+plt.show()
+sc.pl.embedding(adata_patient1[adata_patient1.obs['cell_id'].isin(voisins)], color="Cell_Type",basis='spatial')
+#adata_filtered = adata_patient1[neighbor_counts >0].copy()
+
+
+#radius p1
+x=10
+sq.gr.spatial_neighbors_radius(adata_patient1, radius=x)
+sq.tl.var_by_distance(adata_patient1,cluster_key="Cell_Population",groups="Mac.FOLR2",spatial_key="spatial")
+distances_folr2 = adata_patient1.obsm["design_matrix"]["Mac.FOLR2_raw"]
+adata_subset_p1 = adata_patient1[distances_folr2 <= x].copy()
+
+sc.pl.embedding(adata_subset_p1, color="Cell_Type",basis='spatial')
+
+df_dist= adata_patient1.obs[['Cell_Type','Cell_Subset','area']]
+df_dist= df_dist.join(adata_patient1.obsm["design_matrix"]["Mac.FOLR2_raw"].to_frame())
+df_dist['Distance'] = pd.cut(df_dist['Mac.FOLR2_raw'], [0,10,20,30,40,50,60,70,80,90,100])
+dfn=df_dist[['Distance','area']].groupby(['Distance']).sum()
+df_used = df_dist[['Cell_Type','Distance']]
+df_dist_new = df_used.pivot_table(columns="Cell_Type", index="Distance", aggfunc=len, fill_value=0)
+df_dist_density = df_dist_new.T.div(dfn.T.iloc[0], axis= 'columns').T
+
+
+ax = df_dist_new.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/AllCells_at_X_FOLR2_p1.png', bbox_inches='tight')
+df_dist_new_norm = df_dist_new.apply(lambda x: x/sum(x), axis=1)
+ax = df_dist_new_norm.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/AllCells_at_X_norm_FOLR2_p1.png', bbox_inches='tight')
+ax = df_dist_density.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/AllCells_at_X_density_FOLR2_p1.png', bbox_inches='tight')
+
+
+for i in adata_patient1.obs['Cell_Type'].unique():
+    dfn_sub=df_dist[['Distance','area']].groupby(['Distance']).sum()
+    df_used = df_dist[['Cell_Subset','Distance']]
+    df_dist_new = df_used.pivot_table(columns="Cell_Subset", index="Distance", aggfunc=len, fill_value=0)
+    filter_col = [col for col in df_dist_new if col.startswith(i)]
+    df_fibro = df_dist_new[filter_col]
+    df_fibro_density = df_fibro.T.div(dfn_sub.T.iloc[0], axis= 'columns').T
+    ax = df_fibro.plot.bar(stacked=True,cmap='gist_rainbow')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    plt.style.use('ggplot')
+    plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+    plt.savefig('Alexandre_Paper_FOLR2/Cell_subset_'+i+'_distance_to_FOLR2_p1.png', bbox_inches='tight')
+    df_fibro_norm = df_dist_new[filter_col].apply(lambda x: x/sum(x), axis=1)
+    ax = df_fibro_norm.plot.bar(stacked=True,cmap='gist_rainbow')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    plt.style.use('ggplot')
+    plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+    plt.savefig('Alexandre_Paper_FOLR2/Cell_subset_'+i+'_norm_distance_to_FOLR2_p1.png', bbox_inches='tight')
+    plt.close("all")
+    ax = df_fibro_density.plot.bar(stacked=True,cmap='gist_rainbow')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    plt.style.use('ggplot')
+    plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+    plt.savefig('Alexandre_Paper_FOLR2/Cell_subset_'+i+'_density_distance_to_FOLR2_p1.png', bbox_inches='tight')
+
+
+#radius p2
+x=10
+sq.gr.spatial_neighbors_radius(adata_p2, radius=x)
+sq.tl.var_by_distance(adata_p2,cluster_key="Cell_Subset",groups="Myeloid_#2",spatial_key="spatial")
+distances_folr2 = adata_p2.obsm["design_matrix"]["Myeloid_#2_raw"]
+adata_subset_p2 = adata_p2[distances_folr2 <= x].copy()
+
+sc.pl.embedding(adata_subset_p2, color="Cell_Type",basis='spatial')
+
+df_dist= adata_p2.obs[['Cell_Type','Cell_Subset']]
+df_dist= df_dist.join(adata_p2.obsm["design_matrix"]["Myeloid_#2_raw"].to_frame())
+df_dist['Distance'] = pd.cut(df_dist['Myeloid_#2_raw'], [0,10,20,30,40,50,60,70,80,90,100])
+df_used = df_dist[['Cell_Type','Distance']]
+df_dist_new = df_used.pivot_table(columns="Cell_Type", index="Distance", aggfunc=len, fill_value=0)
+ax = df_dist_new.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/AllCells_at_X_FOLR2_p2.png', bbox_inches='tight')
+df_dist_new_norm = df_dist_new.apply(lambda x: x/sum(x), axis=1)
+ax = df_dist_new_norm.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/AllCells_at_X_norm_FOLR2_p2.png', bbox_inches='tight')
+
+for i in adata_patient1.obs['Cell_Type'].unique():
+    df_used = df_dist[['Cell_Subset','Distance']]
+    df_dist_new = df_used.pivot_table(columns="Cell_Subset", index="Distance", aggfunc=len, fill_value=0)
+    filter_col = [col for col in df_dist_new if col.startswith(i)]
+    df_fibro = df_dist_new[filter_col]
+    ax = df_fibro.plot.bar(stacked=True,cmap='gist_rainbow')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    plt.style.use('ggplot')
+    plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+    plt.savefig('Alexandre_Paper_FOLR2/Cell_subset_'+i+'_distance_to_FOLR2_p2.png', bbox_inches='tight')
+    df_fibro_norm = df_dist_new[filter_col].apply(lambda x: x/sum(x), axis=1)
+    ax = df_fibro_norm.plot.bar(stacked=True,cmap='gist_rainbow')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    plt.style.use('ggplot')
+    plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Population", framealpha=0);
+    plt.savefig('Alexandre_Paper_FOLR2/Cell_subset_'+i+'_norm_distance_to_FOLR2_p2.png', bbox_inches='tight')
+    plt.close("all")
