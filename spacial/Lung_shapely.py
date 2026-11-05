@@ -282,39 +282,66 @@ sns.violinplot(data=p1_folrd_df)
 plt.savefig('Alexandre_Paper_FOLR2/Patient1_neighbour_FOLR2_violin.png', bbox_inches='tight')
 plt.close('all')
 
-#voisin +radius
+#voisin +radius x
+x= 100 #mean diameter tumour c = 11
+name = 'Neighbour_'+str(x)
 geom_p1 = sdata_p1.shapes['proseg_boundaries']['geometry']
 tree_p1 = STRtree(geom_p1)
-adata_patient1.obs['Neighbour_10'] = 'nan'
-adata_patient1.obs['Neighbour_10'] = adata_patient1.obs['Neighbour_10'].astype(object)
+adata_patient1.obs[name] = 'nan'
+adata_patient1.obs[name] = adata_patient1.obs[name].astype(object)
 for cell in adata_patient1.obs['cell_id'].tolist():
-    indices = tree_p1.query(geom_p1[cell],predicate='dwithin',distance=100).tolist()
+    indices = tree_p1.query(geom_p1[cell],predicate='dwithin',distance=x).tolist()
     cell_touching = geom_p1.index[indices].tolist()
     cell_touching.remove(cell)
-    adata_patient1.obs.at[cell, 'Neighbour_10'] = cell_touching
+    adata_patient1.obs.at[cell, name] = cell_touching
 
 adata_p1_folr2 = adata_patient1[adata_patient1.obs['Cell_Population']=='Mac.FOLR2'].copy()
 p1_folr2_df = pd.DataFrame(index = adata_p1_folr2.obs['cell_id'].tolist(),columns =adata_patient1.obs['Cell_Type'].cat.categories.tolist())
 p1_folr2_df = p1_folr2_df.replace(np.NaN, 0)
 
 for cell in adata_p1_folr2.obs['cell_id'].tolist():
-    voisins = adata_p1_folr2.obs['Neighbour_10'][cell]
+    voisins = adata_p1_folr2.obs[name][cell]
     for i in voisins :
         if i in adata_patient1.obs['cell_id'].tolist() :
             ct = adata_patient1.obs['Cell_Type'][i]
             p1_folr2_df.loc[cell, ct] = p1_folr2_df[ct].loc[cell]+1
 
 sns.clustermap(p1_folr2_df)
-plt.savefig('Alexandre_Paper_FOLR2/Patient1_neighbour_100_FOLR2_heatmap.png')
+plt.savefig('Alexandre_Paper_FOLR2/Patient1_neighbour_'+str(x)+'_FOLR2_heatmap.png')
 plt.close('all')
 sns.violinplot(p1_folr2_df)
-plt.savefig('Alexandre_Paper_FOLR2/Patient1_neighbour_100_FOLR2_violin.png', bbox_inches='tight')
+plt.savefig('Alexandre_Paper_FOLR2/Patient1_neighbour_'+str(x)+'_FOLR2_violin.png', bbox_inches='tight')
 plt.close('all')
+p1_folr2_df.to_csv('Alexandre_Paper_FOLR2/Patient1_neighbour_'+str(x)+'_FOLR2.csv')
 
 #flat_list = [ x for xs in adata_p1_folr2.obs['Neighbour_10'] for x in xs]
 #sc.pl.embedding(adata_patient1[adata_patient1.obs['cell_id'].isin(flat_list)], color="Cell_Type",basis='spatial')
 
-adata_p1_folr2 = adata_patient1[adata_patient1.obs['Cell_Population']=='Mac.FOLR2'].copy()
+p1_all_folr2_df = pd.DataFrame(index =adata_patient1.obs['Cell_Type'].cat.categories.tolist(),columns = ['10','20','30','40','50','60','70','80','90','100'])
+p1_all_folr2_df = p1_all_folr2_df.replace(np.NaN, 0)
+p1_new_folr2_df = pd.DataFrame(index =adata_patient1.obs['Cell_Type'].cat.categories.tolist(),columns = ['10','20','30','40','50','60','70','80','90','100'])
+p1_new_folr2_df = p1_all_folr2_df.replace(np.NaN, 0)
+
+for x in range(10,101,10):
+    df = pd.read_csv('Alexandre_Paper_FOLR2/Patient1_neighbour_'+str(x)+'_FOLR2.csv')
+    sum = df.sum()
+    p1_all_folr2_df[str(x)]=sum[1:].to_list()
+    if int(x) >10:
+        p1_new_folr2_df[str(x)] = p1_all_folr2_df[str(x)]-p1_all_folr2_df[str(x-10)]
+    else:
+        p1_new_folr2_df[str(x)] = p1_all_folr2_df[str(x)]
+
+
+ax = p1_new_folr2_df.T.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/AllCells_at_X__foreach_FOLR2_p1.png', bbox_inches='tight')
+
+df = pd.read_csv('Alexandre_Paper_FOLR2/Patient1_neighbour_'+str(x)+'_FOLR2.csv')
+kmeans = KMeans(n_clusters=2, random_state=42)
+df['Cluster_ID'] = kmeans.fit_predict(df[adata_patient1.obs['Cell_Type'].cat.categories.tolist()])
+
 #idem but radius
 sq.gr.spatial_neighbors_radius(adata_patient1, radius=10)
 adj_matrix = adata_patient1.obsp["spatial_connectivities"]
