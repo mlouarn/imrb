@@ -233,23 +233,23 @@ export_to_sg = function(seu, output_sg_file, genes_to_export, reductions, metada
 }
 
 
-seurat_reintegration <- function(seu){
+seurat_reintegration <- function(seu, name_cca = "cca", name_umap = "umap", npcs=50, ndim=50){
   #' uses seurat v5 integration
   seu[['RNA']] <- split(seu[['RNA']], f = seu$orig.ident)
   
   seu <- NormalizeData(seu)
   seu <- FindVariableFeatures(seu)
   seu <- ScaleData(seu)
-  seu <- RunPCA(seu)
+  seu <- RunPCA(seu, npcs=npcs)
   seu <- IntegrateLayers(object = seu, method = CCAIntegration, 
-                         orig.reduction = "pca", new.reduction = "cca",
+                         orig.reduction = "pca", new.reduction = name_cca,
                          k.weight=30, verbose = FALSE)
   seu[["RNA"]] <- JoinLayers(seu[["RNA"]])
-  seu <- FindNeighbors(seu, reduction = "cca",
-                       dims = 1:50)
-  seu <- RunUMAP(seu, dims = 1:50, 
-                 reduction = "cca", 
-                 min.dist = 0.05, reduction.name = "umap")
+  seu <- FindNeighbors(seu, reduction = name_cca,
+                       dims = 1:ndim)
+  seu <- RunUMAP(seu, dims = 1:ndim, 
+                 reduction = name_cca, 
+                 min.dist = 0.05, reduction.name = name_umap)
   return(seu)
 }
 
@@ -295,14 +295,14 @@ DensityPlot = function(seu, reduction = "umap"){
 }
 
 #' for the layout function, to plot multiple feature plots with a better paletteer coloring
-.FeaturePlot_color = function(features, seu){
-  p = FeaturePlot(seu, features = features, order = T)+
+.FeaturePlot_color = function(features, seu, reduction){
+  p = FeaturePlot(seu, features = features, order = T, reduction = reduction)+
     paletteer::scale_color_paletteer_c("ggthemes::Red-Green-Gold Diverging", direction = -1)
   return(p)
 }
 #' for the layout function, to plot multiple feature density plots with a better paletteer coloring
-.DensityFeaturePlot_color = function(features, seu){
-  p = Plot_Density_Custom(seu, features)+
+.DensityFeaturePlot_color = function(features, seu, reduction){
+  p = Plot_Density_Custom(seu, features, reduction = reduction)+
     paletteer::scale_color_paletteer_c("ggthemes::Red-Green-Gold Diverging", direction = -1)
   return(p)
 }
@@ -342,7 +342,7 @@ plot_full_layout = function(seu, reduction="umap",
 plot_full_layout_density = function(seu, reduction="umap", 
                             signatures_to_plot=rownames(seu)[1:4], 
                             metadata_to_plot="orig.ident"){
-  ggps_signature = lapply(signatures_to_plot, .DensityFeaturePlot_color, seu)
+  ggps_signature = lapply(signatures_to_plot, .DensityFeaturePlot_color, seu=seu, reduction=umap_name)
   ggp_density = DensityPlot(seu)
   ggps_metadata = lapply(metadata_to_plot, function(metadata, seu){
     if (nrow(unique(seu@meta.data[metadata]))>22){
@@ -357,6 +357,13 @@ plot_full_layout_density = function(seu, reduction="umap",
   return(final_ggp) 
 }
 
+#' @param signatures_to_plot a vector of the signatures (obtained with Ucell) or the genes to plot
+#' @param metadata_to_plot a vector of all the metadatas to plot (like orig.ident, or seurat_clusters)
+plot_signatures = function(seu, reduction="umap", 
+                            signatures_to_plot=rownames(seu)[1:4]){
+  ggps_signature = lapply(signatures_to_plot, .FeaturePlot_color, seu=seu, reduction=umap_name)
+  return(wrap_plots(ggps_signature))
+}
 
 #' extract the signatures from a vector of csv files 
 #' csv files with a single column (no title) with just a list of genes
