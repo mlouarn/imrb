@@ -9,9 +9,12 @@ import seaborn as sns
 import squidpy as sq
 import pandas as pd
 from sklearn.cluster import KMeans
+import pyucell as uc
+import gseapy as gp
 
 sdata_p1 = sd.read_zarr("/home/marine-louarn/Documents/Lung_Spatial/Patient1_proseg.zarr") 
 adata_patient1= sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient1/20261015_Patient1_withAllSubtypes.h5ad")
+adata_patient1.obs['Cell_Subset'] = adata_patient1.obs['Cell_Type'].astype(str)+'_#'+adata_patient1.obs['Subset_leiden'].astype(str)
 
 geom_p1 = sdata_p1.shapes['proseg_boundaries']['geometry']
 tree_p1 = STRtree(geom_p1)
@@ -22,6 +25,8 @@ for cell in adata_patient1.obs['cell_id'].tolist():
     cell_touching = geom_p1.index[indices].tolist()
     cell_touching.remove(cell)
     adata_patient1.obs.at[cell, 'Neighbour_shapely'] = cell_touching
+
+adata_p1_pseudobulk = sc.get.aggregate(adata_patient1, by=["Cell_Type"], func="mean", layer="counts")
 
 sdata_p2 = sd.read_zarr("/home/marine-louarn/Documents/Lung_Spatial/Patient2_proseg.zarr") 
 adata_p2 = sc.read_h5ad("/home/marine-louarn/Documents/Lung_Spatial/Patient2/20261103_Patient2_withAllSubtypes.h5ad")
@@ -35,6 +40,21 @@ for cell in adata_p2.obs['cell_id'].tolist():
     cell_touching = geom_p2.index[indices].tolist()
     cell_touching.remove(cell)
     adata_p2.obs.at[cell, 'Neighbour_shapely'] = cell_touching
+
+adata_p2_pseudobulk = sc.get.aggregate(adata_p2, by=["Cell_Type"], func="mean", layer="counts")
+
+'''
+check diff signatures
+'''
+marker_mono={'SPP1':['SPP1','CCL2','CTSL','EMP1','ABL2','IL1RN','ABCA1','SDS','ERO1A','MT1X','S100A12'],'FOLR2' : ['FOLR2','LGMN','PLTP','SLC40A1','CCL18','RARRES1','CCL13','TMEM37','CHIT1','FABP4','PCOLCE2'],'IL4I1' : ['ANKRD22','CXCL9','OLFML3','CXCL10','CCL3L3','CCL4L2','IL4I1','GBP1','LILRA5','MTSS1']}
+
+uc.compute_ucell_scores(adata_patient1, signatures=marker_mono, chunk_size=500)
+uc.compute_ucell_scores(adata_p2, signatures=marker_mono, chunk_size=500)
+adata_p1_myelo = adata_patient1[adata_patient1.obs['Cell_Type']=='Myeloid'].copy()
+adata_p2_myelo = adata_p2[adata_p2.obs['Cell_Type']=='Myeloid'].copy()
+sc.pl.DotPlot(adata_p1_myelo,var_names= ['SPP1_UCell','FOLR2_UCell','IL4I1_UCell'],groupby = 'Cell_Subset').show()
+sc.pl.DotPlot(adata_p2_myelo,var_names= ['SPP1_UCell','FOLR2_UCell','IL4I1_UCell'],groupby = 'Cell_Subset').show()
+
 
 
 '''
@@ -102,36 +122,6 @@ p1_folr2_cell_subset.to_csv('Alexandre_Paper_FOLR2/Patient1/Patient1_neighbour_'
 
 #flat_list = [ x for xs in adata_p1_folr2.obs['Neighbour_10'] for x in xs]
 #sc.pl.embedding(adata_patient1[adata_patient1.obs['cell_id'].isin(flat_list)], color="Cell_Type",basis='spatial')
-
-p1_all_folr2_df = pd.DataFrame(index =adata_patient1.obs['Cell_Type'].cat.categories.tolist(),columns = ['0','10','20','30','40','50','60','70','80','90','100'])
-p1_all_folr2_df = p1_all_folr2_df.replace(np.NaN, 0)
-p1_new_folr2_df = pd.DataFrame(index =adata_patient1.obs['Cell_Type'].cat.categories.tolist(),columns = ['0','10','20','30','40','50','60','70','80','90','100'])
-p1_new_folr2_df = p1_all_folr2_df.replace(np.NaN, 0)
-
-for x in range(0,101,10):
-    df = pd.read_csv('Alexandre_Paper_FOLR2/Patient1/Patient1_neighbour_'+str(x)+'_CellType_FOLR2.csv')
-    sum = df.sum()
-    p1_all_folr2_df[str(x)]=sum[1:].to_list()
-    if int(x) >10:
-        p1_new_folr2_df[str(x)] = p1_all_folr2_df[str(x)]-p1_all_folr2_df[str(x-10)]
-    else:
-        p1_new_folr2_df[str(x)] = p1_all_folr2_df[str(x)]
-
-ax = p1_new_folr2_df.T.plot.bar(stacked=True,cmap='tab20')
-ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
-plt.style.use('ggplot')
-plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
-plt.savefig('Alexandre_Paper_FOLR2/Patient1/AllCells_at_X__foreach_FOLR2_p1_v2.png', bbox_inches='tight')
-p1_new_folr2_df_norm = (p1_new_folr2_df/(p1_new_folr2_df.sum())).T
-ax = p1_new_folr2_df_norm.plot.bar(stacked=True,cmap='tab20')
-ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
-plt.style.use('ggplot')
-plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
-plt.savefig('Alexandre_Paper_FOLR2/Patient1/AllCells_at_X_norm_foreach_FOLR2_p1_v2.png', bbox_inches='tight')
-plt.close()
-p1_new_folr2_df_norm.plot()
-plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
-plt.savefig('Alexandre_Paper_FOLR2/Patient1/AllCells_at_X_normLine_foreach_FOLR2_p1_v2.png', bbox_inches='tight')
 
 #idem but radius
 sq.gr.spatial_neighbors_radius(adata_patient1, radius=10)
@@ -281,15 +271,38 @@ plt.close('all')
 
 adata_p1_folr2 = adata_patient1[adata_patient1.obs['Cell_Population']=='Mac.FOLR2'].copy()
 adata_p1_folr2.obs.loc[adata_p1_folr2.obs['cell_id'].isin(df.index), 'Cluster_Folr2'] = df['Cluster_ID']
-adata_p1_folr2.obs['Cluster_Folr2']=+adata_p1_folr2.obs['Cluster_Folr2'].astype("category")
+adata_p1_folr2.obs['Cluster_Folr2']=adata_p1_folr2.obs['Cluster_Folr2'].astype("category")
 adata_p1_folr2.obs['Cluster_Folr2_str']=('#'+adata_p1_folr2.obs['Cluster_Folr2'].astype(str)).astype("category")
 
-sc.tl.rank_genes_groups(adata_p1_folr2, 'Cluster_Folr2', method='wilcoxon', key_added = "wilcoxon")
+adata_p1_folr2_pseudobulk = sc.get.aggregate(adata_p1_folr2, by=["Cluster_Folr2_str"], func="mean", layer="counts")
+adata_p1_pseudobulk.X = adata_p1_pseudobulk.layers['mean']
+adata_p1_pseudobulk_mat = adata_p1_pseudobulk.to_df().T
+adata_p1_folr2_pseudobulk.X = adata_p1_folr2_pseudobulk.layers['mean']
+adata_p1_folr2_pseudobulk_mat = adata_p1_folr2_pseudobulk.to_df().T
+
+sc.tl.rank_genes_groups(adata_p1_folr2, 'Cluster_Folr2_str', method='wilcoxon', key_added = "wilcoxon")
 markers = sc.get.rank_genes_groups_df(adata_p1_folr2,group=None,key='wilcoxon')
 markers.to_csv('Alexandre_Paper_FOLR2/Patient1/Patient1_neighbour_'+str(x)+'_FOLR2_markers.csv')
 sc.tl.rank_genes_groups(adata_p1_folr2, 'Cluster_Folr2_str', method='wilcoxon', key_added = "wilcoxon")
 sc.pl.rank_genes_groups_dotplot(adata_p1_folr2,n_genes=5, key="wilcoxon", groupby="Cluster_Folr2_str",min_logfoldchange=2,show=False)
 plt.savefig('Alexandre_Paper_FOLR2/Patient1/Patient1_neighbour_'+str(x)+'_FOLR2_markersDot.png', bbox_inches='tight')
+plt.close()
+
+list_ct = ['Fibroblasts','T cells','Myeloid','tumour','B cells and plasma cells', 'endothelial']
+list_group = adata_p1_folr2.obs['Cluster_Folr2_str'].unique().tolist()
+df_list=[]
+for i in range(0,6):
+    gene_keept =['']
+    df_use = markers[markers['group']==list_group[i]]
+    for gene in df_use['names'].tolist():
+        if not(adata_p1_folr2_pseudobulk_mat[list_group[i]][gene] < adata_p1_pseudobulk_mat[list_ct[i]][gene]*2) :
+            gene_keept.append(gene)
+    df_list.append(df_use[df_use['names'].isin(gene_keept)])
+markers_filtered = pd.concat(df_list)
+markers_filtered.to_csv('Alexandre_Paper_FOLR2/Patient1/Patient1_neighbour_'+str(x)+'_FOLR2_markers_filtered_expNeigh.csv')
+gene_toplot = markers_filtered.groupby('group').head(5)
+sc.pl.rank_genes_groups_dotplot(adata_p1_folr2, key="wilcoxon", groupby="Cluster_Folr2_str",min_logfoldchange=2,var_names=gene_toplot['names'].tolist(),show=False)
+plt.savefig('Alexandre_Paper_FOLR2/Patient1/Patient1_neighbour_'+str(x)+'_FOLR2_markersDot_filtered_expNeigh.png', bbox_inches='tight')
 plt.close()
 
 #p2
@@ -318,9 +331,94 @@ sc.pl.rank_genes_groups_dotplot(adata_p2_folr2,n_genes=5, key="wilcoxon", groupb
 plt.savefig('Alexandre_Paper_FOLR2/Patient2/Patient2_neighbour_'+str(x)+'_FOLR2_markersDot.png', bbox_inches='tight')
 plt.close()
 
+#fgsea
+markers_0 = markers[(markers['group']=='0.0') & (markers['pvals_adj']<0.05) & (markers['logfoldchanges']>0)]
+markers_1 = markers[(markers['group']=='1.0') & (markers['pvals_adj']<0.05) & (markers['logfoldchanges']>0)]
+markers_2 = markers[(markers['group']=='2.0') & (markers['pvals_adj']<0.05) & (markers['logfoldchanges']>0)]
+markers_3 = markers[(markers['group']=='3.0') & (markers['pvals_adj']<0.05) & (markers['logfoldchanges']>0)]
+markers_4 = markers[(markers['group']=='4.0') & (markers['pvals_adj']<0.05) & (markers['logfoldchanges']>0)]
+markers_5 = markers[(markers['group']=='5.0') & (markers['pvals_adj']<0.05) & (markers['logfoldchanges']>0)]
+enr_0 = gp.enrichr(markers_0.names, gene_sets='GO_Biological_Process_2021', outdir=None)
+enr_0.res2d.Term = enr_0.res2d.Term.str.split(" \(GO").str[0]
+gp.dotplot(enr_0.res2d, figsize=(3,5), title="Cluster_#0", cmap = plt.cm.autumn_r)
+plt.show()
+
+
+
+#Graph at different radius
+#Cell_type
+p1_all_folr2_df = pd.DataFrame(index =adata_patient1.obs['Cell_Type'].cat.categories.tolist(),columns = ['0','10','20','30','40','50','60','70','80','90','100'])
+p1_all_folr2_df = p1_all_folr2_df.replace(np.NaN, 0)
+p1_new_folr2_df = pd.DataFrame(index =adata_patient1.obs['Cell_Type'].cat.categories.tolist(),columns = ['0','10','20','30','40','50','60','70','80','90','100'])
+p1_new_folr2_df = p1_all_folr2_df.replace(np.NaN, 0)
+
+for x in range(0,101,10):
+    df = pd.read_csv('Alexandre_Paper_FOLR2/Patient1/Patient1_neighbour_'+str(x)+'_CellType_FOLR2.csv')
+    sum = df.sum()
+    p1_all_folr2_df[str(x)]=sum[1:].to_list()
+    if int(x) >1:
+        p1_new_folr2_df[str(x)] = p1_all_folr2_df[str(x)]-p1_all_folr2_df[str(x-10)]
+    else:
+        p1_new_folr2_df[str(x)] = p1_all_folr2_df[str(x)]
+
+ax = p1_new_folr2_df.T.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/Patient1/AllCells_at_X__foreach_FOLR2_p1_v3.png', bbox_inches='tight')
+p1_new_folr2_df_norm = (p1_new_folr2_df/(p1_new_folr2_df.sum())).T
+ax = p1_new_folr2_df_norm.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/Patient1/AllCells_at_X_norm_foreach_FOLR2_p1_v3.png', bbox_inches='tight')
+plt.close()
+p1_new_folr2_df_norm.plot(cmap='tab20')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/Patient1/AllCells_at_X_normLine_foreach_FOLR2_p1_v3.png', bbox_inches='tight')
+
+
+#cell subtype = Myelo
+p1_myelo_folr2_df = pd.DataFrame(index =adata_patient1.obs['Cell_Subset'].unique().tolist(),columns = ['0','10','20','30','40','50','60','70','80','90','100'])
+p1_myelo_folr2_df = p1_myelo_folr2_df.replace(np.NaN, 0)
+p1_myelo_new_folr2_df = pd.DataFrame(index =adata_patient1.obs['Cell_Subset'].unique().tolist(),columns = ['0','10','20','30','40','50','60','70','80','90','100'])
+p1_myelo_new_folr2_df = p1_myelo_folr2_df.replace(np.NaN, 0)
+
+filter_col = [col for col in p1_myelo_folr2_df.T if col.startswith('Myeloid')]
+p1_myelo_folr2_df = p1_myelo_folr2_df.T[filter_col].T
+p1_myelo_new_folr2_df = p1_myelo_new_folr2_df.T[filter_col].T
+
+for x in range(0,101,10):
+    df = pd.read_csv('Alexandre_Paper_FOLR2/Patient1/Patient1_neighbour_'+str(x)+'_CellSubset_FOLR2.csv')
+    df=df[filter_col]
+    sum = df.sum()
+    p1_myelo_folr2_df[str(x)]=sum[0:].to_list()
+    if int(x) >=10:
+        p1_myelo_new_folr2_df[str(x)] = p1_myelo_folr2_df[str(x)]-p1_myelo_folr2_df[str(x-10)]
+    else:
+        p1_myelo_new_folr2_df[str(x)] = p1_myelo_folr2_df[str(x)]
+
+ax = p1_myelo_new_folr2_df.T.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/Patient1/Myelo_at_X__foreach_FOLR2_p1.png', bbox_inches='tight')
+p1_myelo_new_folr2_df_norm = (p1_myelo_new_folr2_df/(p1_myelo_new_folr2_df.sum())).T
+ax = p1_myelo_new_folr2_df_norm.plot.bar(stacked=True,cmap='tab20')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+plt.style.use('ggplot')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/Patient1/Myelo_at_X_norm_foreach_FOLR2_p1.png', bbox_inches='tight')
+plt.close()
+p1_myelo_new_folr2_df_norm.plot(cmap='tab20')
+plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), title="Cell Type", framealpha=0);
+plt.savefig('Alexandre_Paper_FOLR2/Patient1/Myelo_at_X_normLine_foreach_FOLR2_p1.png', bbox_inches='tight')
+
+
 '''
 Next to FOLR2 changes
 '''
+#cell subtype
 c_type = ['B cells', 'Fibroblasts', 'Plasma cells', 'T cells']
 adata_p2_folr2_c_list = adata_p2[adata_p2.obs['Cell_Subset']=='Myeloid_#2'].obs['cell_id'].tolist()
 for ct in c_type:
@@ -352,3 +450,22 @@ for ct in c_type:
     sc.pl.rank_genes_groups_dotplot(adata, groupby='Voisin_FOLR2_YN',key='group_DE_results',min_logfoldchange=1,show=False)
     plt.savefig('Alexandre_Paper_FOLR2/Patient1/Patient1_'+ct+'_markersDot.png', bbox_inches='tight')
     plt.close()
+
+#signature among specific
+
+T_act_dict={'T_act':['PDCD1', 'CD8A']}
+
+uc.compute_ucell_scores(adata_patient1, signatures=T_act_dict, chunk_size=500)
+
+c_type = 'T cells'
+x=10
+sq.gr.spatial_neighbors_radius(adata_p2, radius=x)
+sq.tl.var_by_distance(adata_p2,cluster_key="Cell_Subset",groups="Myeloid_#2",spatial_key="spatial")
+distances_folr2 = adata_p2.obsm["design_matrix"]["Myeloid_#2_raw"]
+
+adata_ct = adata_p2[adata_p2.obs['Cell_Type']==c_type].copy()
+df_dist= adata_ct.obs[['Cell_Type','Cell_Subset','T_act_UCell']]
+df_dist= df_dist.join(adata_ct.obsm["design_matrix"]["Myeloid_#2_raw"].to_frame())
+df_dist['Distance'] = pd.cut(df_dist['Myeloid_#2_raw'], [0,10,20,30,40,50,60,70,80,90,100])
+#sns.boxplot(data=df_dist, x="Distance", y="T_act_UCell", whis=(0, 100))
+sns.violinplot(data=df_dist, x="Distance", y="T_act_UCell", whis=(0, 100))
