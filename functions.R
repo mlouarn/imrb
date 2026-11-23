@@ -358,11 +358,25 @@ plot_full_layout_density = function(seu, reduction="umap",
 }
 
 #' @param signatures_to_plot a vector of the signatures (obtained with Ucell) or the genes to plot
-#' @param metadata_to_plot a vector of all the metadatas to plot (like orig.ident, or seurat_clusters)
-plot_signatures = function(seu, reduction="umap", 
+plot_signatures = function(seu = seu, reduction="umap", 
                             signatures_to_plot=rownames(seu)[1:4]){
-  ggps_signature = lapply(signatures_to_plot, .FeaturePlot_color, seu=seu, reduction=umap_name)
+  ggps_signature = lapply(signatures_to_plot, .FeaturePlot_color, seu=seu, reduction=reduction)
   return(wrap_plots(ggps_signature))
+}
+
+
+#' @param metadata_to_plot a vector of all the metadatas to plot (like orig.ident, or seurat_clusters)
+plot_metadata = function(seu = seu, reduction="umap", 
+                           metadata_to_plot=c("orig.ident"), ncol=4){
+  # ggps_signature = purrr::map(.x=metadata_to_plot,
+  #                             .f=~DimPlot(seu,
+  #                                      reduction=reduction,
+  #                                      group.by=.x))
+  ggps_signature = purrr::map(.x=metadata_to_plot,
+                              .f=\(x) DimPlot(seu,
+                                           reduction = reduction,
+                                           group.by = x))
+  return(wrap_plots(ggps_signature, ncol=ncol))
 }
 
 #' extract the signatures from a vector of csv files 
@@ -374,6 +388,7 @@ plot_signatures = function(seu, reduction="umap",
 #' seu = AddModuleScore_UCell(seu, features = list_signatures, name=NULL)
 csv2signature = function(csv_signature_files){
   signature_names = str_extract(basename(csv_signature_files), ".*(?=\\.csv)")
+  signature_names = paste0("signature_", signature_names)
   signature_df = lapply(csv_signature_files, read.csv, header=F)
   list_signatures = lapply(signature_df, unlist, use.names=F)
   names(list_signatures) = signature_names
